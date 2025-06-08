@@ -21,7 +21,7 @@ email, pwd = get_creds()
 #     }
 async def main(email: str, pwd: str) -> None:
     """
-    Function to request data from Tile
+    Function to request and save data from Tile
 
     Parameters
     -----------
@@ -47,7 +47,7 @@ async def main(email: str, pwd: str) -> None:
             history = await tile.async_history(start, end)
             tile_history[tile_uuid] = history
                 
-        with open(f'data\data_{datetime.now().date()}.json', 'w') as f:
+        with open(f'data/raw/data_{datetime.now().date()}.json', 'w') as f:
             json.dump(tile_history, f)
 
 asyncio.run(main(email, pwd))
