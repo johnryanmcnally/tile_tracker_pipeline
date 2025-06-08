@@ -2,15 +2,16 @@
 import asyncio
 from aiohttp import ClientSession
 from pytile import async_login
+from dotenv import load_dotenv
 
 # Native Imports
 from datetime import datetime
 import json
+import os
 
-# Custom Imports
-from credentials import get_creds # Function to pull my personal credentials for pytile -- included in .gitignore
-
-email, pwd = get_creds() 
+load_dotenv()
+email = os.getenv("TILE_EMAIL")
+pwd = os.getenv("TILE_PWD")
 # tilenames = {
 #     '0287c8181aa557e7': 'Maya',
 #     '02df4813aa180c3a': 'Maya’s Backpack',

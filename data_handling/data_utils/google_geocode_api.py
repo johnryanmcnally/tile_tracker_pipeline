@@ -1,0 +1,186 @@
+# Third Party
+import googlemaps
+from dotenv import load_dotenv
+import pandas as pd
+import numpy as np
+
+# Native
+import time
+import os
+
+# Custom
+
+
+
+"""
+In order to use this script the Google Cloud SDK Shell needs to be running
+
+1. Open 'Google Cloud SDK Shell'
+2. Run command: 'gcloud init'
+3. Follow prompts to sign in
+4. Choose 'crafty-sound-462212-u1' as the project
+
+"""
+
+class Geocoder():
+    """
+    Class to facilitate data to and from Google Maps API
+
+    Attributes
+    ----------
+    google_api_key : str
+        API Key for Google Maps
+    client : googlemaps.Client
+        client for GoogleMaps API
+    geocode_results : dict
+        dict containing {cluster label: api_response}
+    df : pandas DataFrame
+        has columns ['cluster_label','latitude','longitude']
+
+    Methods
+    -------
+    check_state()
+        ensure client is running correctly
+    geocode_clusters(df)
+        make the API call to GoogleMaps API and save result
+    process_geocode()
+        process the results from the API responses
+
+    """
+    def __init__(self, geocode_results = None, df = None):
+        """
+        Initialize Geocoder
+
+        Parameters
+        -----------
+        geocode_results : str [optional]
+            load pre-saved results from API call
+        df : pandas DataFrame [optional]
+            load a dataframe
+
+        Returns
+        -----------
+        None
+        """
+        # retrieve api key
+        load_dotenv() # take environment variables from .env.
+        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        # Set up client that includes Reverse Geocoding
+        self.client = googlemaps.Client(key=f"{self.google_api_key}")
+
+        if geocode_results is not None:
+            self.geocode_results = geocode_results
+        if df is not None:
+            self.df = df
+
+    def check_state(self):
+        """
+        Check state of GoogleMaps API client
+        """
+        try:
+            state = self.client.__getstate__()
+            return state
+        except Exception as e:
+            print(e)
+
+    # Request reverse geocoding from google api
+    def geocode_clusters(self, df: pd.DataFrame) -> dict:
+        """
+        Request reverse geocoding from GoogleMaps API
+
+        Parameters
+        -----------
+        df : pandas DataFrame
+            contains columns ['cluster_label','latitude','longitude']
+
+        Returns
+        -----------
+        geocode_results : dict
+            dictionary containing {cluster_label: api_response}
+        """
+        self.df = df
+        total_len = df['cluster_label'].nunique()
+        self.geocode_results = {}
+        for i, cluster_label in enumerate(list(df['cluster_label'].unique())):
+            if i%50 == 0:
+                print(f"{100*(i/total_len):.1f}% Complete")
+            # reverse geocode the mean lat and lon of the cluster
+            lat, lon = df[df['cluster_label'] == cluster_label][['latitude','longitude']].mean().values
+            self.geocode_results[str(cluster_label)] = self.client.reverse_geocode((lat, lon))
+            time.sleep(.02) # to stay under the 3000 requests per minute ~ .02 sec per request
+
+        return self.geocode_results
+
+    
+    def process_geocode(self):
+        """
+        Process responses from GoogleMaps API
+
+        Parameters
+        -----------
+        None
+
+        Returns
+        -----------
+        df_tags : pandas DataFrame
+            contains columns ['cluster_label','tag'] one row per possible tag
+        df_place_ids : pandas DataFrame
+            contains columns ['cluster_label','place_id'] one row per possible place_id
+        df_addresses : pandas DataFrame
+            contains columns ['cluster_label','address'] one row per possible address
+
+        """
+        # Initialize empty lists to collect data for our new DataFrames
+        all_tags = []
+        all_place_ids = []
+        all_addresses = []
+
+        # --- Process special clusters (-3 and -1) ---
+        # For transit clusters (-3)
+        label = -3
+        all_tags.append({'cluster_label': label, 'tag': 'transit'})
+        all_place_ids.append({'cluster_label': label, 'place_id': 'none'})
+        all_addresses.append({'cluster_label': label, 'address': 'none'})
+
+        # For outlier clusters (-1)
+        label = -1
+        all_tags.append({'cluster_label': label, 'tag': 'outlier'})
+        all_place_ids.append({'cluster_label': label, 'place_id': 'none'})
+        all_addresses.append({'cluster_label': label, 'address': 'none'})
+
+        # --- Process regular clusters (not -1, -2, or -3) ---
+        # Get labels that are not special cases and exist in geocode_results
+        regular_cluster_labels = [
+            label for label in self.df['cluster_label'].unique()
+            if label not in [-1, -2, -3] and str(label) in self.geocode_results
+        ]
+
+        for cluster_label in regular_cluster_labels:
+            geocoded_items = self.geocode_results[str(cluster_label)]
+            
+            # Filter geocode results once per cluster for valid location types
+            filtered_results = [
+                item for item in geocoded_items
+                if item['geometry']['location_type'] not in ['RANGE_INTERPOLATED', 'APPROXIMATE']
+            ]
+
+            for item in filtered_results:
+                # Tags: handle nested list of types
+                if 'types' in item and isinstance(item['types'], list):
+                    for tag in item['types']:
+                        all_tags.append({'cluster_label': cluster_label, 'tag': tag})
+                
+                # Place IDs
+                if 'place_id' in item:
+                    all_place_ids.append({'cluster_label': cluster_label, 'place_id': item['place_id']})
+                
+                # Addresses
+                if 'formatted_address' in item:
+                    all_addresses.append({'cluster_label': cluster_label, 'address': item['formatted_address']})
+
+        # Create the new DataFrames
+        self.df_tags = pd.DataFrame(all_tags)
+        self.df_place_ids = pd.DataFrame(all_place_ids)
+        self.df_addresses = pd.DataFrame(all_addresses)
+
+        return self.df_tags, self.df_place_ids, self.df_addresses

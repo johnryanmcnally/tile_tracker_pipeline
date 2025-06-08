@@ -74,7 +74,7 @@ def numpy_to_hashable_bytes(arr):
 
 # caching doesn't help here because we are not calling the function repeatedly with the same arguments
 # @lru_cache(maxsize=None)
-def cluster_data(df):
+def cluster_data(df, metric: str = 'haversine', min_cluster_size: int = 5):
     """
     Fits an HDBSCAN clustering model to the data and returns the labels
 
@@ -91,7 +91,7 @@ def cluster_data(df):
     # coords = scaler.fit_transform(df)
     # consider using metric='haversine' in future versions, which also need to remove standard scaler
     coords_radians = np.deg2rad(df[['latitude', 'longitude']].values)
-    db = HDBSCAN(metric='haversine', min_cluster_size=5, n_jobs=-1).fit(coords_radians) 
+    db = HDBSCAN(metric=metric, min_cluster_size=min_cluster_size, n_jobs=-1).fit(coords_radians) 
     return db, db.labels_
 
 def add_bearing_column(df):
@@ -164,13 +164,8 @@ def add_direction_similarity(df):
     vector_A = df_copy[['prev_diff_lat', 'prev_diff_lon']].values
     vector_B = df_copy[['diff_lat', 'diff_lon']].values
 
-    # Calculate dot product: x1*x2 + y1*y2
     dot_product = np.sum(vector_A * vector_B, axis=1)
-
-    # Calculate magnitude of vector A: sqrt(x1^2 + y1^2)
     magnitude_A = np.sqrt(np.sum(vector_A**2, axis=1))
-
-    # Calculate magnitude of vector B: sqrt(x2^2 + y2^2)
     magnitude_B = np.sqrt(np.sum(vector_B**2, axis=1))
 
     # Calculate cosine similarity
@@ -184,16 +179,35 @@ def add_direction_similarity(df):
     # Convert to Pandas Series and ensure the index aligns with the original df
     return pd.Series(direction_similarity, index=df.index)
 
-# prev_len = df['place_cluster_label'].nunique()
-# for cluster_label in list(df['place_cluster_label'].unique()):
-#     if (cluster_label == -1) | (cluster_label == -2): continue
-#     cluster = df[df['place_cluster_label'] == cluster_label]
-    
-#     if cluster['direction_similarity'].iloc[1:].mean() > .25: #remove first point because it will reference a point not in the cluster
-#         cluster_idx = df[df['place_cluster_label'] == cluster_label].index
-#         df.loc[cluster_idx,'place_cluster_label'] = -3
-# print(f"{len(df[df['place_cluster_label']==-3])} points labelled as transit (-3)")
-# print(f"reduced clusters by {prev_len - df['place_cluster_label'].nunique()} from {prev_len} to {df['place_cluster_label'].nunique()}")
+
+def reduce_clusters(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Optimizes cluster labels based on direction similarity criteria.
+
+    Parameters
+    ----------
+    df (pd.DataFrame): DataFrame containing 'cluster_label' and 'direction_similarity' columns.
+
+    Returns
+    -------
+    pd.DataFrame: DataFrame with updated 'cluster_label' column.
+    """
+    df_copy = df.copy()
+
+    # Create a boolean mask for valid clusters (not -1 or -2)
+    valid_cluster_mask = ~df_copy['cluster_label'].isin([-1, -2])
+
+    # Calculate mean of direction_similarity for clusters
+    cluster_means = df_copy[valid_cluster_mask].groupby('cluster_label')['direction_similarity'].mean()
+
+    # Identify clusters that meet the condition
+    clusters_to_relabel = cluster_means[cluster_means > 0.25].index.tolist()
+
+    # Relabel these clusters to -3
+    df_copy.loc[df_copy['cluster_label'].isin(clusters_to_relabel), 'cluster_label'] = -3
+
+    return df_copy['cluster_label']
+
 
 # # drop unneccessary columns
 # unnamed = [col for col in df.columns if 'unnamed' in col.lower()]

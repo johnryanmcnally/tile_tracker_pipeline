@@ -1,1 +1,6 @@
 credentials.py
+data_handling/save_state.csv
+.env
+*.env
+/data
+/data_handling/tileDataHandling.ipynb
