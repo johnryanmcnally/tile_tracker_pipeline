@@ -28,7 +28,7 @@ tile_uuid = tilenames_reverse[tile_name]
 
 if __name__ == "__main__":
     # set this flag to test new code at the bottom, then move tested code to 'else' to save new save state
-    testing = False
+    testing = True
     # Option to rerun the api call to googlemaps
     rerun_api = False
     
@@ -107,12 +107,44 @@ if __name__ == "__main__":
 
         print("Processing geocode results...")
         start = time.time()
-        df_tags, df_place_ids, df_addresses = geocoder.process_geocode()
+        df_tags, df_place_ids, df_addresses, df_cluster_address = geocoder.process_geocode()
         print(f"Took {time.time() - start:.3f} seconds")
         df_tags.to_csv(STAGEDATAPATH + 'tags.csv')
         df_place_ids.to_csv(STAGEDATAPATH + 'place_ids.csv')
         df_addresses.to_csv(STAGEDATAPATH + 'addresses.csv')
-        print("Geocode results saved to their own dataframes: 'tags.csv', 'place_ids.csv', 'addresses.csv'")
+        df_addresses.to_csv(STAGEDATAPATH + 'cluster_address.csv')
+        print("Geocode results saved to their own dataframes: 'tags.csv', 'place_ids.csv', 'addresses.csv', 'cluster_address.csv'")
      
-    
-    
+    # *** Testing Area ***
+
+    if rerun_api:
+        # request reverse geocode information from googlemaps api
+        # *** Must have Google Cloud SDK Shell running and authenticated ***
+        geocoder = Geocoder()
+        geocoder.check_state()
+        print(f"Requestion reverse geocoding from GoogleMaps API...")
+        start = time.time()
+        geocode_results = geocoder.geocode_clusters(df[['cluster_label','latitude','longitude']])
+        print("Done.")
+        print(f"Took {time.time() - start:.3f} seconds") 
+        # Save Result immediately so we dont have to do it again
+        with open(STAGEDATAPATH + 'geocode_results.json','w+') as f:
+            json.dump(geocode_results, f)
+        print(f"Successfully saved geocoding data: 'geocode_results.json'")
+    else:
+        with open(STAGEDATAPATH + 'geocode_results.json','r') as f:
+            geocode_results = json.load(f)
+        print("loaded saved geocode results from 'geocode_results.json'")
+
+        # initialize with pre-saved data
+        geocoder = Geocoder(geocode_results = geocode_results, df = df[['cluster_label','latitude','longitude']])
+
+    print("Processing geocode results...")
+    start = time.time()
+    df_tags, df_place_ids, df_addresses, df_cluster_address = geocoder.process_geocode()
+    print(f"Took {time.time() - start:.3f} seconds")
+    df_tags.to_csv(STAGEDATAPATH + 'tags.csv')
+    df_place_ids.to_csv(STAGEDATAPATH + 'place_ids.csv')
+    df_addresses.to_csv(STAGEDATAPATH + 'addresses.csv')
+    df_cluster_address.to_csv(STAGEDATAPATH + 'cluster_address.csv')
+    print("Geocode results saved to their own dataframes: 'tags.csv', 'place_ids.csv', 'addresses.csv', 'cluster_address.csv'")
