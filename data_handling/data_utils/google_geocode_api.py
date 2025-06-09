@@ -135,11 +135,6 @@ class Geocoder():
         all_tags = []
         all_place_ids = []
         all_addresses = []
-        address_components = ['cluster_label','formated_address',
-                              'administrative_area_level_1','administrative_area_level_2',
-                              'administrative_area_level_3','administrative_area_level_4',
-                              'street_number','route','neighborhood','locality',
-                              'country','postal_code','postal_code_suffix','plus_code']
 
         # --- Process special clusters (-3 and -1) ---
         # For transit clusters (-3)
@@ -190,8 +185,15 @@ class Geocoder():
         self.df_possible_addresses = pd.DataFrame(all_addresses)
         self.df_cluster_address = self.add_address_info()
 
+        # Use address information to further normalize cluster_labels
+        self.norm_cluster_map = self.get_normalized_cluster_mapping()
+        self.df_tags.loc[:,'norm_cluster_label'] = self.df_tags['cluster_label'].map(self.norm_cluster_map)
+        self.df_place_ids.loc[:,'norm_cluster_label'] = self.df_place_ids['cluster_label'].map(self.norm_cluster_map)
+        self.df_possible_addresses.loc[:,'norm_cluster_label'] = self.df_possible_addresses['cluster_label'].map(self.norm_cluster_map)
+        self.df_cluster_address.loc[:,'norm_cluster_label'] = self.df_cluster_address['cluster_label'].astype(int).map(self.norm_cluster_map)      
 
-        return self.df_tags, self.df_place_ids, self.df_possible_addresses, self.df_cluster_address
+
+        return self.df_tags, self.df_place_ids, self.df_possible_addresses, self.df_cluster_address, self.norm_cluster_map
     
     def add_address_info(self):
         address_components = ['cluster_label',
@@ -231,3 +233,17 @@ class Geocoder():
         # print(address_info)
         df_cluster_address = pd.DataFrame(address_info)
         return df_cluster_address
+    
+    def get_normalized_cluster_mapping(self):
+        # Mapping address to most frequent cluster_label
+        tdf = self.df_possible_addresses.groupby('address')['cluster_label'].agg(pd.Series.mode).to_frame().reset_index()
+        tdf.rename(columns={'cluster_label': 'norm_cluster_label'}, inplace=True)
+        tdf = tdf.explode('norm_cluster_label')
+        # This df contains the mapping of cluster_label --> most_common_cluster_label
+        tdf = pd.merge(self.df_possible_addresses, tdf, on='address', how='left')
+
+        # Convert to dictionary
+        cluster_map = pd.Series(tdf['norm_cluster_label'].values, index=tdf['cluster_label']).to_dict()
+        cluster_map[-1] = -1
+        cluster_map[-3] = -3
+        return cluster_map
