@@ -3,6 +3,7 @@ import googlemaps
 from dotenv import load_dotenv
 import pandas as pd
 import numpy as np
+from anyascii import anyascii
 
 # Native
 import time
@@ -134,6 +135,11 @@ class Geocoder():
         all_tags = []
         all_place_ids = []
         all_addresses = []
+        address_components = ['cluster_label','formated_address',
+                              'administrative_area_level_1','administrative_area_level_2',
+                              'administrative_area_level_3','administrative_area_level_4',
+                              'street_number','route','neighborhood','locality',
+                              'country','postal_code','postal_code_suffix','plus_code']
 
         # --- Process special clusters (-3 and -1) ---
         # For transit clusters (-3)
@@ -181,6 +187,47 @@ class Geocoder():
         # Create the new DataFrames
         self.df_tags = pd.DataFrame(all_tags)
         self.df_place_ids = pd.DataFrame(all_place_ids)
-        self.df_addresses = pd.DataFrame(all_addresses)
+        self.df_possible_addresses = pd.DataFrame(all_addresses)
+        self.df_cluster_address = self.add_address_info()
 
-        return self.df_tags, self.df_place_ids, self.df_addresses
+
+        return self.df_tags, self.df_place_ids, self.df_possible_addresses, self.df_cluster_address
+    
+    def add_address_info(self):
+        address_components = ['cluster_label',
+                              'administrative_area_level_1','administrative_area_level_2',
+                              'administrative_area_level_3','administrative_area_level_4',
+                              'street_number','route','neighborhood','locality',
+                              'country','postal_code','postal_code_suffix','plus_code']
+        address_info = []
+        for key in self.geocode_results.keys():
+            # print(key, type(key))
+            if key in ['-1','-3']:
+                loc_info = {comp:np.nan for comp in address_components}
+                loc_info['cluster_label'] = key
+                address_info.append(loc_info)
+            else:
+                parsed_components = {}
+                for comp in self.geocode_results[key][0]['address_components']:
+                    component_type = comp['types'][0]
+                    if component_type in address_components:
+                        long_name_value = comp['long_name']
+                        
+                        # Check if the value is not None and convert it to string
+                        if long_name_value is not None:
+                            # Use str() to convert integers, floats, etc., to strings
+                            parsed_components[component_type] = anyascii(str(long_name_value))
+                        else:
+                            # If it's None, you might want to keep it as None or treat it as NaN
+                            parsed_components[component_type] = np.nan # Or None, depending on preference
+
+                # Now, build the final loc_info dictionary
+                loc_info = {
+                    tag: parsed_components.get(tag, np.nan)
+                    for tag in address_components
+                }
+                loc_info['cluster_label'] = key
+                address_info.append(loc_info)
+        # print(address_info)
+        df_cluster_address = pd.DataFrame(address_info)
+        return df_cluster_address
