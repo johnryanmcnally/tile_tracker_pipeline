@@ -8,7 +8,7 @@ import json
 
 # Custom Imports
 from data_utils.utils import *
-from data_utils.google_geocode_api import Geocoder
+from data_handling.data_utils.geocoder import Geocoder
 
 # Variables
 RAWDATAPATH = r'data\raw\\'
