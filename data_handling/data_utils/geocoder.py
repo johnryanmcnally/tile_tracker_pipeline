@@ -183,9 +183,12 @@ class Geocoder():
         self.df_tags = pd.DataFrame(all_tags)
         self.df_place_ids = pd.DataFrame(all_place_ids)
         self.df_possible_addresses = pd.DataFrame(all_addresses)
+        # Further process geocode results for city, country, etc
+        # contains info for top address in cluster, so save to new frame
         self.df_cluster_address = self.add_address_info()
 
         # Use address information to further normalize cluster_labels
+        # Many clusters have the same primary address -- normalize based on that
         self.norm_cluster_map = self.get_normalized_cluster_mapping()
         self.df_tags.loc[:,'norm_cluster_label'] = self.df_tags['cluster_label'].map(self.norm_cluster_map)
         self.df_place_ids.loc[:,'norm_cluster_label'] = self.df_place_ids['cluster_label'].map(self.norm_cluster_map)
@@ -196,6 +199,18 @@ class Geocoder():
         return self.df_tags, self.df_place_ids, self.df_possible_addresses, self.df_cluster_address, self.norm_cluster_map
     
     def add_address_info(self):
+        """
+        Further process geocode results to extract the primary address's compenents
+
+        Parameters
+        -----------
+        None
+
+        Returns
+        -----------
+        df_cluster_address : pd.DataFrame
+            dataframe containing additional information for the primary address in a cluster
+        """
         address_components = ['cluster_label',
                               'administrative_area_level_1','administrative_area_level_2',
                               'administrative_area_level_3','administrative_area_level_4',
@@ -235,6 +250,19 @@ class Geocoder():
         return df_cluster_address
     
     def get_normalized_cluster_mapping(self):
+        """
+        Reduce clusters using the primary address in cluster
+
+        Parameters
+        -----------
+        None
+
+        Returns
+        -----------
+        cluster_map : dict
+            dictionary that maps {cluster_label: norm_cluster_label}. Contains an entry for every cluster and maps to
+            the normalized version of that cluster
+        """
         # Mapping address to most frequent cluster_label
         tdf = self.df_possible_addresses.groupby('address')['cluster_label'].agg(pd.Series.mode).to_frame().reset_index()
         tdf.rename(columns={'cluster_label': 'norm_cluster_label'}, inplace=True)
