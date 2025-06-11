@@ -8,7 +8,8 @@ import json
 
 # Custom Imports
 from data_utils.utils import *
-from data_handling.data_utils.geocoder import Geocoder
+from data_utils.geocoder import Geocoder
+from data_utils.weather_api import Weather_API
 
 # Variables
 RAWDATAPATH = r'data\raw\\'
@@ -29,8 +30,9 @@ tile_uuid = tilenames_reverse[tile_name]
 if __name__ == "__main__":
     # set this flag to test new code at the bottom, then move tested code to 'else' to save new save state
     testing = True
-    # Option to rerun the api call to googlemaps
-    rerun_api = False
+    # Option to rerun the api calls
+    rerun_geocode_api = False
+    rerun_weather_api = False
     
     if testing:
         # start from save state
@@ -73,7 +75,7 @@ if __name__ == "__main__":
         print(f"reduced clusters by {prev_len - df['cluster_label'].nunique()} from {prev_len} to {df['cluster_label'].nunique()}")
         print(f"Took {time.time() - start:.3f} seconds") 
         
-        if rerun_api:
+        if rerun_geocode_api:
             # request reverse geocode information from googlemaps api
             # *** Must have Google Cloud SDK Shell running and authenticated ***
             geocoder = Geocoder()
@@ -117,7 +119,24 @@ if __name__ == "__main__":
         df_addresses.to_csv(STAGEDATAPATH + 'addresses.csv')
         df_cluster_address.to_csv(STAGEDATAPATH + 'cluster_address.csv')
         print("Geocode results saved to their own dataframes: 'tags.csv', 'place_ids.csv', 'addresses.csv', 'cluster_address.csv'")
+
+        if rerun_weather_api:
+            print("Getting weather data from Open-Meteo...")
+            start = time.time()
+            weather_api = Weather_API()
+            weather_api.get_weather(df[['date','time','latitude','longitude']])
+            print('Weather data successfully retrieved.')
+            print(f"Took {time.time() - start:.3f} seconds")
+
+            weather_api.weather_df.to_csv(STAGEDATAPATH + 'weather.csv')
+            print(f"Successfully saved processed weather data: 'weather.csv'")
+        else:
+            weather_df = pd.read_csv(STAGEDATAPATH + 'weather.csv')
+            # initialize with pre-saved data
+            weather_api = Weather_API(weather_df = weather_df)
+            print("Loaded saved weather data from 'weather.csv'")
      
     # *** Testing Area ***
 
     
+

@@ -21,12 +21,14 @@ db_name = 'tile_db'
 # The format is: 'postgresql+psycopg2://user:password@host:port/database'
 engine = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
 
-for fname in ['addresses.csv','cluster_address.csv','place_ids.csv','tags.csv','tile_data_John.csv']:
+for fname in ['addresses.csv','cluster_address.csv','place_ids.csv','tags.csv','tile_data_John.csv','weather.csv']:
     df = pd.read_csv(STAGEDDATAPATH + fname)
+    remove_cols = [col for col in df if 'unnamed' in col.lower()]
+    df = df.drop(columns=remove_cols)
     df['tile_name'] = 'John'
     table_name = fname.replace('.csv','').lower() # The name you want for your PostgreSQL table
     try:
-        df.to_sql(table_name, engine, if_exists='replace', index=False)
+        df.to_sql(table_name, engine, if_exists='replace', index=True)
         print(f"DataFrame successfully loaded into table '{table_name}' in PostgreSQL.")
 
     except Exception as e:
