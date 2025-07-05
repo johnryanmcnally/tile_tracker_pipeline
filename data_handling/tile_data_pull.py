@@ -36,19 +36,22 @@ async def main(email: str, pwd: str) -> None:
     # Open client to request data
     async with ClientSession() as session:
         # login
+        print('Logging in...')
         api = await async_login(email, pwd, session)
         # request data
         tiles = await api.async_get_tiles()
 
         # handle and save data from request return
+        print("Collecting Data...")
         tile_history = {}
         for tile_uuid, tile in tiles.items():
             start = datetime(2024, 10, 1, 0, 0, 0)
             end = datetime.today()
             history = await tile.async_history(start, end)
             tile_history[tile_uuid] = history
-                
+        
+        print("Saving Data...")
         with open(f'data/raw/data_{datetime.now().date()}.json', 'w') as f:
             json.dump(tile_history, f)
-
+        print(f"Data successfully saved to 'data/raw/data_{datetime.now().date()}.json'")
 asyncio.run(main(email, pwd))
