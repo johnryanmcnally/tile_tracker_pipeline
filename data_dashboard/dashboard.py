@@ -43,7 +43,14 @@ with col1:
     st.text('here to push the map up \n\n')
     
 
-# with col2:
+with col2:
+    st.text(f"{raw['date'].nunique()} Days")
+    if filter_selection == 'Clustered':
+        st.text(f"{data_map[filter_selection]['cluster_label'].nunique()} Clusters")
+    elif filter_selection == 'Normalized':
+        st.text(f"{data_map[filter_selection]['norm_cluster_label'].nunique()} Clusters")
+    else:
+        st.text("hey")
 
 
 

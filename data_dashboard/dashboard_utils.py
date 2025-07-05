@@ -14,8 +14,8 @@ def get_db_connection():
     load_dotenv() # take environment variables from .env.
     db_user = os.getenv("POSTGRESQL_USERNAME")
     db_password = os.getenv("POSTGRESQL_PWD")
-    db_host = 'localhost' # Or your PostgreSQL server IP/hostname
-    db_port = '5432'      # Default PostgreSQL port
+    db_host = 'localhost'
+    db_port = '5432'
     db_name = 'tile_db'
     try:
         conn = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
@@ -25,7 +25,7 @@ def get_db_connection():
         st.stop() # Stop the Streamlit app if connection fails
 
 # Function to fetch data
-@st.cache_data(ttl=600) # Cache data for 10 minutes (adjust as needed)
+@st.cache_data(ttl=600) # Cache data for 10 minutes
 def fetch_data(start, end):
     rawquery = f"""
                 SELECT date, latitude, longitude
@@ -34,17 +34,42 @@ def fetch_data(start, end):
                 ;
             """
     clusterquery = f"""
-                SELECT DISTINCT ON (cluster_label) date, latitude, longitude
-                FROM tile_data_john
-                WHERE date::date BETWEEN '{start}' AND '{end}'
+                SELECT DISTINCT ON (t.cluster_label)
+                    tdj.date,
+                    tdj.latitude,
+                    tdj.longitude,
+                    tdj.cluster_label,
+                    t.tag,
+                    a.address
+                FROM tags AS t 
+                INNER JOIN tile_data_john AS tdj ON t.cluster_label = tdj.cluster_label
+                INNER JOIN addresses AS a ON t.cluster_label = a.cluster_label
+                WHERE 
+                    t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
+                    AND
+                    tdj.date::date BETWEEN '{start}' AND '{end}'
                 ;
             """
     normalizedquery = f"""
-                SELECT DISTINCT ON (norm_cluster_label) date, latitude, longitude
-                FROM tile_data_john
-                WHERE date::date BETWEEN '{start}' AND '{end}'
+                SELECT DISTINCT ON (t.norm_cluster_label)
+                    tdj.date,
+                    tdj.latitude,
+                    tdj.longitude,
+                    tdj.norm_cluster_label,
+                    t.tag,
+                    a.address
+                FROM tags AS t 
+                INNER JOIN tile_data_john AS tdj ON t.norm_cluster_label = tdj.norm_cluster_label
+                INNER JOIN addresses AS a ON t.norm_cluster_label = a.norm_cluster_label
+                WHERE 
+                    t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
+                    AND
+                    tdj.date::date BETWEEN '{start}' AND '{end}'
                 ;
             """
+                #     SELECT DISTINCT ON (norm_cluster_label) norm_cluster_label, date, latitude, longitude
+                # FROM tile_data_john
+                # WHERE date::date BETWEEN '{start}' AND '{end}'
     engine = get_db_connection()
     raw = pd.read_sql(rawquery, engine)
     cluster = pd.read_sql(clusterquery, engine)
@@ -75,8 +100,6 @@ def make_map(plotdf, filter_selection):
             # sizeref=2. * max(plotdf[color]) / (60.**2), # Adjust this to control overall marker size scaling, default is usually fine
             # opacity=0.7, # Transparency of markers
         )
-        # text=df['city'] + '<br>Population: ' + df['population'].astype(str) + 'M',
-        # hoverinfo='text'
     ))
 
     fig.update_layout(
@@ -98,8 +121,26 @@ def make_map(plotdf, filter_selection):
         b=0, # bottom margin
         t=0, # top margin
         pad=0 # padding around plot (usually zero for tight fit)
+        )
     )
-
-    )
+    if filter_selection != 'Raw':
+        fig.update_traces(
+            # Find the Scattermapbox trace (usually the first one if you only have one)
+            # You might need to specify selector=dict(type='scattermapbox') if you have other trace types
+            selector=dict(type='scattermapbox'),
+            text='<br>Latitude: ' + plotdf['latitude'].round(3).astype(str) + \
+                '<br>Longitude: ' + plotdf['longitude'].round(3).astype(str) + \
+                '<br>Tag: ' + plotdf['tag'],
+            hoverinfo='text', # Ensure hoverinfo is set to 'text' to use your custom text
+        )
+    else:
+        fig.update_traces(
+            # Find the Scattermapbox trace (usually the first one if you only have one)
+            # You might need to specify selector=dict(type='scattermapbox') if you have other trace types
+            selector=dict(type='scattermapbox'),
+            text='<br>Latitude: ' + plotdf['latitude'].round(3).astype(str) + \
+                '<br>Longitude: ' + plotdf['longitude'].round(3).astype(str),
+            hoverinfo='text', # Ensure hoverinfo is set to 'text' to use your custom text
+        )        
 
     return fig
