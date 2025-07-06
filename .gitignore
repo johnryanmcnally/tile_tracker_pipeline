@@ -6,3 +6,4 @@ data_handling/save_state.csv
 /data_handling/tileDataHandling.ipynb
 /airflow/logs
 /data_handling/data_utils/__pycache__
+/airflow/simple_auth_manager_passwords.json.generated
