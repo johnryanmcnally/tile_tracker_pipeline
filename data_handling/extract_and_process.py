@@ -31,7 +31,7 @@ if __name__ == "__main__":
     print("Data successfully combined.")
     print(f"Took {time.time() - start:.3f} seconds")
 
-    # Add Bearing (DEPRECATED - column no longer used, but I like it)
+    # Add Bearing (DEPRECATED - column no longer used, but could be useful for visualizations)
     print('Adding bearing column...')
     start = time.time()
     df['bearing'] = add_bearing_column(df[['latitude','longitude']])
@@ -46,4 +46,4 @@ if __name__ == "__main__":
     print(f"Took {time.time() - start:.3f} seconds")
 
     df.to_parquet(TEMPPATH + 'temp_extract_and_process.parquet', index=False)
-    print(TEMPPATH + 'temp_extract_and_process.parquet') # Print the output path to stdout for Airflow XCom capture
+    print(TEMPPATH + 'temp_extract_and_process.parquet')

@@ -40,9 +40,9 @@ if __name__ == '__main__':
 
         # Save df to parquet
         df.to_parquet(TEMPPATH + 'temp_cluster.parquet', index=False)
-        print(TEMPPATH + 'temp_cluster.parquet') # Print the output path to stdout for Airflow XCom capture
+        print(TEMPPATH + 'temp_cluster.parquet')
     else:
         # just reload previous data
         df = pd.read_parquet(TEMPPATH + 'temp_cluster.parquet')
         df.to_parquet(TEMPPATH + 'temp_cluster.parquet', index=False)
-        print(TEMPPATH + 'temp_cluster.parquet') # Print the output path to stdout for Airflow XCom capture
+        print(TEMPPATH + 'temp_cluster.parquet')

@@ -11,24 +11,28 @@ dag = DAG(
     catchup=False
 )
 
+# Step 1
 extract_and_process_task = BashOperator(
     task_id = 'extract_and_process',
     bash_command = "python /opt/data_handling/extract_and_process.py",
     dag = dag
 )
 
+# Step 2
 hdbscan_cluster_task = BashOperator(
     task_id = 'hdbscan_cluster',
     bash_command = "python /opt/data_handling/hdbscan_cluster.py",
     dag = dag
 )
 
+# Step 3a
 reverse_geocode_task = BashOperator(
     task_id = 'reverse_geocode',
     bash_command = "python /opt/data_handling/reverse_geocode.py",
     dag = dag
 )
 
+# Step 3b
 retrieve_weather_task = BashOperator(
     task_id = 'retrieve_weather',
     bash_command = "python /opt/data_handling/retrieve_weather.py",
@@ -45,8 +49,8 @@ load_to_postgres_task = BashOperator(
 # Step 1 to Step 2
 extract_and_process_task >> hdbscan_cluster_task
 
-# Step 2 to both 3a and 3b (Forking)
+# Step 2 to both 3a and 3b
 hdbscan_cluster_task >> [reverse_geocode_task, retrieve_weather_task]
 
-# Both 3a and 3b to Step 4 (Joining)
+# Both 3a and 3b to Step 4
 [reverse_geocode_task, retrieve_weather_task] >> load_to_postgres_task

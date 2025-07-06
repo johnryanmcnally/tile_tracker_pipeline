@@ -8,21 +8,24 @@ from pathlib import Path
 import json
 
 # caching doesn't help here because we are not calling the function repeatedly with the same arguments
-# @lru_cache(maxsize=None) 
-
+# @lru_cache(maxsize=None)
 def combine_data(datapath: str, tile_uuid: str, tile_name: str):
     """
     Function to combine all data from the raw jsons to a dataframe, optimized for speed.
 
     Parameters
     -----------
-        datapath (str): the file path pointing to the directory holding the raw data in json format
-        tile_uuid (str): unique ID for the tile
-        tile_name (str): human readable name of the tile
+    datapath : string
+        the file path pointing to the directory holding the raw data in json format
+    tile_uuid : string
+        unique ID for the tile
+    tile_name : string
+        human readable name of the tile
 
     Returns
     ----------
-        df (dataframe): dataframe containing the combined data
+    df : pd.DataFrame
+        dataframe containing the combined data
     """
     all_location_updates = []
     files = Path(datapath).glob('*.json')
@@ -63,6 +66,7 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str):
 
     return df
 
+# *** DEPRACATED - no longer used because caching is not necessary ***
 def numpy_to_hashable_bytes(arr):
     """Converts a NumPy array to hashable bytes, including dtype and shape."""
     # how to rebuild the array:
@@ -77,12 +81,15 @@ def cluster_data(df, metric: str = 'haversine', min_cluster_size: int = 5):
 
     Parameters
     -----------
-        df (dataframe): dataframe that contains the columns to be fit on (should only be ['latitude', 'longitude'])
+    df : pd.DataFrame
+        dataframe that contains the columns to be fit on (should only be ['latitude', 'longitude'])
 
     Returns
     -----------
-        db (sklearn HDBSCAN class): fit model
-        db.labels_ (array): array containing the labels
+    db : sklearn HDBSCAN class
+        fit model
+    db.labels_ : np.array
+        array containing the labels
     """
     # scaler = StandardScaler()
     # coords = scaler.fit_transform(df)
@@ -97,11 +104,13 @@ def add_bearing_column(df):
 
     Parameters
     -----------
-        df (DataFrame): dataframe containing ['latitude','longitude']
+    df : pd.DataFrame
+        dataframe containing ['latitude','longitude']
 
     Returns
-    -----------
-        bearing (Series): pandas series containing the bearing for every row
+    ---------
+    bearing : pd.Series
+        pandas series containing the bearing for every row
     """
     # Create a copy to avoid SettingWithCopyWarning if df is a slice
     df_copy = df.copy()
@@ -140,39 +149,37 @@ def add_direction_similarity(df):
 
     Parameters
     -----------
-        df (DataFrame): dataframe containing ['latitude','longitude']
+    df : pd.DataFrame 
+        dataframe containing ['latitude','longitude']
 
     Returns
     -----------
-        direction_similarity (Series): pandas series containing the direction similarity for every row
+    direction_similarity : pd.Series
+        series containing the direction similarity for every row
     """
-    # Create a copy to avoid SettingWithCopyWarning if df is a slice
-    df_copy = df.copy()
+    cdf = df.copy()
 
     # Calculate differences for current and previous steps
-    df_copy['diff_lat'] = df_copy['latitude'] - df_copy['latitude'].shift(1)
-    df_copy['diff_lon'] = df_copy['longitude'] - df_copy['longitude'].shift(1)
+    cdf['diff_lat'] = cdf['latitude'] - cdf['latitude'].shift(1)
+    cdf['diff_lon'] = cdf['longitude'] - cdf['longitude'].shift(1)
     # Shift these differences to get 'previous' differences
-    df_copy['prev_diff_lat'] = df_copy['diff_lat'].shift(1)
-    df_copy['prev_diff_lon'] = df_copy['diff_lon'].shift(1)
+    cdf['prev_diff_lat'] = cdf['diff_lat'].shift(1)
+    cdf['prev_diff_lon'] = cdf['diff_lon'].shift(1)
 
     # Stack the columns to form 2D arrays where each row is a vector
-    vector_A = df_copy[['prev_diff_lat', 'prev_diff_lon']].values
-    vector_B = df_copy[['diff_lat', 'diff_lon']].values
+    vector_A = cdf[['prev_diff_lat', 'prev_diff_lon']].values
+    vector_B = cdf[['diff_lat', 'diff_lon']].values
 
     dot_product = np.sum(vector_A * vector_B, axis=1)
     magnitude_A = np.sqrt(np.sum(vector_A**2, axis=1))
     magnitude_B = np.sqrt(np.sum(vector_B**2, axis=1))
 
-    # Calculate cosine similarity
-    # Handle division by zero: if magnitudes are zero, cosine similarity is undefined (often treated as 0 or NaN)
-    # Using np.divide with where clause handles this gracefully
+    # Calculate direction similarity
     direction_similarity = np.divide(dot_product,
                                      (magnitude_A * magnitude_B),
-                                     out=np.zeros_like(dot_product, dtype=float), # Output array for results
-                                     where=(magnitude_A * magnitude_B) != 0)
-
-    # Convert to Pandas Series and ensure the index aligns with the original df
+                                     out = np.zeros_like(dot_product, dtype=float), # Output array for results
+                                     where = (magnitude_A * magnitude_B) != 0) # handle division by 0
+    
     return pd.Series(direction_similarity, index=df.index)
 
 
@@ -182,29 +189,27 @@ def reduce_clusters(df: pd.DataFrame) -> pd.DataFrame:
 
     Parameters
     ----------
-    df (pd.DataFrame): DataFrame containing 'cluster_label' and 'direction_similarity' columns.
+    df : pd.DataFrame
+        dataFrame containing 'cluster_label' and 'direction_similarity' columns.
 
     Returns
     -------
-    pd.DataFrame: DataFrame with updated 'cluster_label' column.
+    cluster_labels : pd.Series
+        series containing the reduced cluster labels
     """
-    df_copy = df.copy()
+    cdf = df.copy()
 
     # Create a boolean mask for valid clusters (not -1 or -2)
-    valid_cluster_mask = ~df_copy['cluster_label'].isin([-1, -2])
+    valid_cluster_mask = ~cdf['cluster_label'].isin([-1, -2])
 
     # Calculate mean of direction_similarity for clusters
-    cluster_means = df_copy[valid_cluster_mask].groupby('cluster_label')['direction_similarity'].mean()
+    cluster_means = cdf[valid_cluster_mask].groupby('cluster_label')['direction_similarity'].mean()
 
     # Identify clusters that meet the condition
     clusters_to_relabel = cluster_means[cluster_means > 0.25].index.tolist()
 
     # Relabel these clusters to -3
-    df_copy.loc[df_copy['cluster_label'].isin(clusters_to_relabel), 'cluster_label'] = -3
+    cdf.loc[cdf['cluster_label'].isin(clusters_to_relabel), 'cluster_label'] = -3
 
-    return df_copy['cluster_label']
-
-
-# # drop unneccessary columns
-# unnamed = [col for col in df.columns if 'unnamed' in col.lower()]
-# df = df.drop(columns=['prev_latitude','prev_longitude','diff_lat','prev_diff_lat','diff_lon','prev_diff_lon'] + unnamed)
+    cluster_labels = cdf['cluster_label']
+    return cluster_labels

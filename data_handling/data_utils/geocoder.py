@@ -9,10 +9,6 @@ from anyascii import anyascii
 import time
 import os
 
-# Custom
-
-
-
 """
 In order to use this script the Google Cloud SDK Shell needs to be running
 
@@ -66,7 +62,7 @@ class Geocoder():
         # retrieve api key
         load_dotenv() # take environment variables from .env.
         self.google_api_key = os.environ.get("GOOGLE_API_KEY")
-        # Set up client that includes Reverse Geocoding
+        # Set up googlemaps client for reverse geocoding
         self.client = googlemaps.Client(key=f"{self.google_api_key}")
 
         if geocode_results is not None:
@@ -149,7 +145,6 @@ class Geocoder():
         all_place_ids.append({'cluster_label': label, 'place_id': 'none'})
         all_addresses.append({'cluster_label': label, 'address': 'none'})
 
-        # --- Process regular clusters (not -1, -2, or -3) ---
         # Get labels that are not special cases and exist in geocode_results
         regular_cluster_labels = [
             label for label in self.df['cluster_label'].unique()
@@ -159,14 +154,13 @@ class Geocoder():
         for cluster_label in regular_cluster_labels:
             geocoded_items = self.geocode_results[str(cluster_label)]
             
-            # Filter geocode results once per cluster for valid location types
             filtered_results = [
                 item for item in geocoded_items
                 if item['geometry']['location_type'] not in ['RANGE_INTERPOLATED', 'APPROXIMATE']
             ]
 
             for item in filtered_results:
-                # Tags: handle nested list of types
+                # Tags
                 if 'types' in item and isinstance(item['types'], list):
                     for tag in item['types']:
                         all_tags.append({'cluster_label': cluster_label, 'tag': tag})
@@ -184,12 +178,13 @@ class Geocoder():
         self.df_place_ids = pd.DataFrame(all_place_ids)
         self.df_possible_addresses = pd.DataFrame(all_addresses)
         # Further process geocode results for city, country, etc
-        # contains info for top address in cluster, so save to new frame
+        # contains info only for top address in cluster, so save to new frame
         self.df_cluster_address = self.add_address_info()
 
         # Use address information to further normalize cluster_labels
         # Many clusters have the same primary address -- normalize based on that
         self.norm_cluster_map = self.get_normalized_cluster_mapping()
+        # Add normalized cluster label to the above dfs
         self.df_tags.loc[:,'norm_cluster_label'] = self.df_tags['cluster_label'].map(self.norm_cluster_map)
         self.df_place_ids.loc[:,'norm_cluster_label'] = self.df_place_ids['cluster_label'].map(self.norm_cluster_map)
         self.df_possible_addresses.loc[:,'norm_cluster_label'] = self.df_possible_addresses['cluster_label'].map(self.norm_cluster_map)
@@ -218,7 +213,6 @@ class Geocoder():
                               'country','postal_code','postal_code_suffix','plus_code']
         address_info = []
         for key in self.geocode_results.keys():
-            # print(key, type(key))
             if key in ['-1','-3']:
                 loc_info = {comp:np.nan for comp in address_components}
                 loc_info['cluster_label'] = key
@@ -232,20 +226,19 @@ class Geocoder():
                         
                         # Check if the value is not None and convert it to string
                         if long_name_value is not None:
-                            # Use str() to convert integers, floats, etc., to strings
+                            # anyascii converts non-english characters to their closest equivalent
                             parsed_components[component_type] = anyascii(str(long_name_value))
                         else:
-                            # If it's None, you might want to keep it as None or treat it as NaN
-                            parsed_components[component_type] = np.nan # Or None, depending on preference
+                            parsed_components[component_type] = np.nan
 
-                # Now, build the final loc_info dictionary
+                # build the final loc_info dictionary
                 loc_info = {
                     tag: parsed_components.get(tag, np.nan)
                     for tag in address_components
                 }
                 loc_info['cluster_label'] = key
                 address_info.append(loc_info)
-        # print(address_info)
+
         df_cluster_address = pd.DataFrame(address_info)
         return df_cluster_address
     

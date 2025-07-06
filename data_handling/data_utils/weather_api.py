@@ -16,7 +16,7 @@ class Weather_API():
         self.retry_session = retry(self.cache_session, retries = 5, backoff_factor = 0.2)
         self.openmeteo = openmeteo_requests.Client(session = self.retry_session)
         self.url = "https://archive-api.open-meteo.com/v1/archive"
-        self.rate_limiter = .1 # s/call -- limit of 600 calls/min
+        self.rate_limiter = .1 # sec/call -- limit of 600 calls/min
 
         if weather_df is not None:
             self.weather_df = weather_df
@@ -25,6 +25,16 @@ class Weather_API():
     def get_weather(self, df):
         """
         Returns the dataframe with weather data based on datetime, latitude, longitude
+
+        Parameters
+        ------------
+        df : pd.DataFrame
+            dataframe containing date, latitude, and longitude
+
+        Returns
+        -----------
+        None
+
         """
         # make dataframe for just dates
         day_df = df[['date','latitude','longitude']].groupby('date').mean().reset_index()
@@ -55,6 +65,17 @@ class Weather_API():
     def get_hourly(self, response):
         """
         Code from Open-Meteo to build hourly dataframe from response
+
+        Parameters
+        ------------
+        response : Open-Meteo response object
+            contains hourly weather data for the date, latitude, and longitude
+
+        Returns
+        -----------
+        hourly_dataframe : pd.DataFrame
+            dataframe containing 24 hours of data for the average location for each day (size = 24 x # of days)
+
         """
         # Process hourly data. The order of variables needs to be the same as requested.
         hourly = response.Hourly()
@@ -112,6 +133,19 @@ class Weather_API():
         return hourly_dataframe
     
     def make_weather_df(self, df):
+        """
+        function to merge hourly data for average location in each day with full location data
+
+        Parameters
+        ------------
+        df : pd.DataFrame
+            original dataframe containig date, latitude, and longitude
+
+        Returns
+        -----------
+        cdf : pd.DataFrame
+            original dataframe plus all associated weather data for each row
+        """
         # Make column to merge on
         cdf = df.copy()
         cdf.loc[:,'hour'] = pd.to_datetime(cdf['time'], format="%H:%M:%S").dt.hour
