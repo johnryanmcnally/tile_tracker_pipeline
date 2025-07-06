@@ -1,13 +1,12 @@
 # Third Party
 import pandas as pd
 from sqlalchemy import create_engine
-import psycopg2
 from dotenv import load_dotenv
 
 # Native
 import os
 
-STAGEDDATAPATH = r'data\staged\\'
+TEMPPATH = '/opt/data/temp/'
 
 # PostgreSQL credentials and database details
 load_dotenv() # take environment variables from .env.
@@ -20,9 +19,16 @@ db_name = 'tile_db'
 # Create the SQLAlchemy engine
 # The format is: 'postgresql+psycopg2://user:password@host:port/database'
 engine = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
-
-for fname in ['addresses.csv','cluster_address.csv','place_ids.csv','tags.csv','tile_data_John.csv','weather.csv']:
-    df = pd.read_csv(STAGEDDATAPATH + fname)
+files_to_load = ['temp_cluster.parquet', # result of extract, process, cluster, and refine
+                 # reverse geocoding results
+                 'addresses.parquet',
+                 'cluster_address.parquet',
+                 'place_ids.parquet',
+                 'tags.parquet',
+                 # weather api results
+                 'weather.parquet']
+for fname in files_to_load:
+    df = pd.read_parquet(TEMPPATH + fname)
     remove_cols = [col for col in df if 'unnamed' in col.lower()]
     df = df.drop(columns=remove_cols)
     df['tile_name'] = 'John'

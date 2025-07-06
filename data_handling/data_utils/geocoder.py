@@ -65,7 +65,7 @@ class Geocoder():
         """
         # retrieve api key
         load_dotenv() # take environment variables from .env.
-        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        self.google_api_key = os.environ.get("GOOGLE_API_KEY")
         # Set up client that includes Reverse Geocoding
         self.client = googlemaps.Client(key=f"{self.google_api_key}")
 

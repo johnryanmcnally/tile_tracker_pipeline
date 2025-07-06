@@ -4,3 +4,5 @@ data_handling/save_state.csv
 *.env
 /data
 /data_handling/tileDataHandling.ipynb
+/airflow/logs
+/data_handling/data_utils/__pycache__

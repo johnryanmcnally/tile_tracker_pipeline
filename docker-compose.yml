@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  tileproject:
+    image: tileproject:latest
+
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./data_handling:/opt/data_handling
+      - ./data:/opt/data
+
+    ports:
+      - "8080:8080"
+
+    command: airflow standalone

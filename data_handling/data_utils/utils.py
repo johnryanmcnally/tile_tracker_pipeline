@@ -2,12 +2,9 @@
 import pandas as pd
 import numpy as np
 from sklearn.cluster import HDBSCAN
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics.pairwise import cosine_similarity
 
 # Native Imports
 from pathlib import Path
-from functools import lru_cache, cache
 import json
 
 # caching doesn't help here because we are not calling the function repeatedly with the same arguments
@@ -152,7 +149,6 @@ def add_direction_similarity(df):
     # Create a copy to avoid SettingWithCopyWarning if df is a slice
     df_copy = df.copy()
 
-    # ** Below will create NaN value for two rows **
     # Calculate differences for current and previous steps
     df_copy['diff_lat'] = df_copy['latitude'] - df_copy['latitude'].shift(1)
     df_copy['diff_lon'] = df_copy['longitude'] - df_copy['longitude'].shift(1)

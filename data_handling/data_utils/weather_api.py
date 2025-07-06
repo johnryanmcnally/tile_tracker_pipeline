@@ -84,7 +84,9 @@ class Weather_API():
             inclusive = "left"
         )}
 
-        hourly_data['date_hour'] = pd.to_datetime(hourly_data['datetime'].date.astype(str) + ' ' +  hourly_data['datetime'].hour.astype(str), format="%Y-%m-%d %H") # addition to map to date 
+        # hourly_data['date_hour'] = pd.to_datetime(hourly_data['datetime'].date.astype(str) + ' ' +  hourly_data['datetime'].hour.astype(str), format="%Y-%m-%d %H") # addition to map to date 
+        hourly_data['date_hour'] = pd.to_datetime(hourly_data['datetime'].strftime('%Y-%m-%d') + ' ' + 
+                                                  hourly_data['datetime'].hour.astype(str), format="%Y-%m-%d %H")
         hourly_data['hour'] = hourly_data['datetime'].hour # addition to map to hours
         hourly_data['elevation_meters_asl'] = response.Elevation() # addition to map to elevation
         hourly_data["temperature_2m"] = hourly_temperature_2m
