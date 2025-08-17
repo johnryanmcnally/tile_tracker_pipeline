@@ -18,7 +18,7 @@ db_name = 'tile_db'
 
 # Create the SQLAlchemy engine
 engine = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
-files_to_load = ['temp_cluster.parquet', # result of extract, process, cluster, and refine
+files_to_load = ['feature_engineering.parquet', # result of extract, process, cluster, and refine
                  # reverse geocoding results
                  'addresses.parquet',
                  'cluster_address.parquet',

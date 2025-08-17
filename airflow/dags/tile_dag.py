@@ -12,16 +12,16 @@ dag = DAG(
 )
 
 # Step 1
-extract_and_process_task = BashOperator(
-    task_id = 'extract_and_process',
-    bash_command = "python /opt/data_handling/extract_and_process.py",
+extract_tile_data_task = BashOperator(
+    task_id = 'extract_tile_data',
+    bash_command = "python /opt/data_handling/extract_tile_data.py",
     dag = dag
 )
 
 # Step 2
-hdbscan_cluster_task = BashOperator(
-    task_id = 'hdbscan_cluster',
-    bash_command = "python /opt/data_handling/hdbscan_cluster.py",
+feature_engineering_task = BashOperator(
+    task_id = 'feature_engineering',
+    bash_command = "python /opt/data_handling/feature_engineering.py",
     dag = dag
 )
 
@@ -47,10 +47,10 @@ load_to_postgres_task = BashOperator(
 
 # Assign dependencies
 # Step 1 to Step 2
-extract_and_process_task >> hdbscan_cluster_task
+extract_tile_data_task >> feature_engineering_task
 
 # Step 2 to both 3a and 3b
-hdbscan_cluster_task >> [reverse_geocode_task, retrieve_weather_task]
+feature_engineering_task >> [reverse_geocode_task, retrieve_weather_task]
 
 # Both 3a and 3b to Step 4
 [reverse_geocode_task, retrieve_weather_task] >> load_to_postgres_task

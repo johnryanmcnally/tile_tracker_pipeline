@@ -36,14 +36,21 @@ def fetch_data(start, end):
     clusterquery = f"""
                 SELECT DISTINCT ON (t.cluster_label)
                     tdj.date,
+                    tdj.time,
                     tdj.latitude,
                     tdj.longitude,
-                    tdj.cluster_label,
+                    w.elevation_meters_asl AS elevation,
+                    w.temperature_2m AS temperature,
+                    w.relative_humidity_2m AS relative_humidity,
+                    w.cloud_cover,
+                    w.precipitation,
+                    tdj.norm_cluster_label,
                     t.tag,
                     a.address
                 FROM tags AS t 
                 INNER JOIN tile_data_john AS tdj ON t.cluster_label = tdj.cluster_label
                 INNER JOIN addresses AS a ON t.cluster_label = a.cluster_label
+                INNER JOIN weather AS w ON t.index = w.index
                 WHERE 
                     t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
                     AND
@@ -51,16 +58,22 @@ def fetch_data(start, end):
                 ;
             """
     normalizedquery = f"""
-                SELECT DISTINCT ON (t.norm_cluster_label)
+                SELECT
                     tdj.date,
                     tdj.latitude,
                     tdj.longitude,
+                    w.elevation_meters_asl AS elevation,
+                    w.temperature_2m AS temperature,
+                    w.relative_humidity_2m AS relative_humidity,
+                    w.cloud_cover,
+                    w.precipitation,
                     tdj.norm_cluster_label,
                     t.tag,
-                    a.address
+                    a.address	
                 FROM tags AS t 
                 INNER JOIN tile_data_john AS tdj ON t.norm_cluster_label = tdj.norm_cluster_label
                 INNER JOIN addresses AS a ON t.norm_cluster_label = a.norm_cluster_label
+                INNER JOIN weather AS w ON t.index = w.index
                 WHERE 
                     t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
                     AND
@@ -71,14 +84,14 @@ def fetch_data(start, end):
                 # FROM tile_data_john
                 # WHERE date::date BETWEEN '{start}' AND '{end}'
     engine = get_db_connection()
-    raw = pd.read_sql(rawquery, engine)
-    cluster = pd.read_sql(clusterquery, engine)
-    norm = pd.read_sql(normalizedquery, engine)
-    engine.dispose()
+    # raw = pd.read_sql(rawquery, con=engine)
+    cluster = pd.read_sql(clusterquery, con=engine)
+    # norm = pd.read_sql(normalizedquery, con=engine)
+    raw, norm = pd.DataFrame(), pd.DataFrame()
 
     return raw, cluster, norm
 
-@st.cache_data(ttl=600)
+# @st.cache_data(ttl=600)
 def make_map(plotdf, filter_selection):
     load_dotenv() # take environment variables from .env.
     MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN")
@@ -128,9 +141,13 @@ def make_map(plotdf, filter_selection):
             # Find the Scattermapbox trace (usually the first one if you only have one)
             # You might need to specify selector=dict(type='scattermapbox') if you have other trace types
             selector=dict(type='scattermapbox'),
-            text='<br>Latitude: ' + plotdf['latitude'].round(3).astype(str) + \
-                '<br>Longitude: ' + plotdf['longitude'].round(3).astype(str) + \
-                '<br>Tag: ' + plotdf['tag'],
+            text=
+            '<br>Tag: ' + plotdf['tag'] + \
+            '<br>Latitude: ' + plotdf['latitude'].round(3).astype(str) + \
+            '<br>Longitude: ' + plotdf['longitude'].round(3).astype(str) + \
+            '<br>Time: ' + plotdf['time'] +\
+            '<br>Temperature: ' + plotdf['temperature'].round(1).astype(str) + 'C' +\
+            '<br>Rel Hum: ' + plotdf['relative_humidity'].round(2).astype(str),
             hoverinfo='text', # Ensure hoverinfo is set to 'text' to use your custom text
         )
     else:

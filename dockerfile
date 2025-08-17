@@ -9,4 +9,4 @@ USER airflow
 COPY requirements.txt /requirements.txt
 COPY .env /.env
 RUN pip install uv
-RUN uv pip install googlemaps anyascii openmeteo_requests requests_cache retry_requests
+RUN uv pip install googlemaps anyascii openmeteo_requests requests_cache retry_requests pytile asyncio aiohttp dotenv

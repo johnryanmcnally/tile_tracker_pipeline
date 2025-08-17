@@ -13,7 +13,7 @@ TEMPPATH = '/opt/data/temp/'
 
 if __name__ == '__main__':
     # Load Data
-    df = pd.read_parquet(TEMPPATH + 'temp_cluster.parquet')
+    df = pd.read_parquet(TEMPPATH + 'feature_engineering.parquet')
 
     # request reverse geocode information from googlemaps api
     # *** Must have Google Cloud SDK Shell running and authenticated ***

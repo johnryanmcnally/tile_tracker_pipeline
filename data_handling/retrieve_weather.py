@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     if testing:
         # Load Data
-        df = pd.read_parquet(TEMPPATH + 'temp_cluster.parquet')
+        df = pd.read_parquet(TEMPPATH + 'feature_engineering.parquet')
 
         # Retrieve Weather Data
         print("Getting weather data from Open-Meteo...")
@@ -29,6 +29,6 @@ if __name__ == '__main__':
         print(f"Successfully saved processed weather data: '{TEMPPATH + 'weather.parquet'}'")
     else:
         # Load Data
-        df = pd.read_parquet(TEMPPATH + 'temp_cluster.parquet')
+        df = pd.read_parquet(TEMPPATH + 'feature_engineering.parquet')
         df.to_parquet(TEMPPATH + 'weather.parquet')
         print(f"Successfully saved processed weather data: '{TEMPPATH + 'weather.parquet'}'")
