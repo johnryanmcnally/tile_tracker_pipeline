@@ -41,6 +41,8 @@ There are 5 tasks in the DAG detailed below:
 
 <h2/>Future Work</h2>
 The items listed here are currently in development:
+
 1. A dashboard using Streamlit to display important data metrics and interesting visualizations
-2. Various machine learning models with the intent of including automated training, evaluation, and deployment when new data arrives
-2a. Model and data versioning
+2. Various machine learning models using PyTorch with the intent of including automated training, evaluation, and deployment when new data arrives
+
+    2a. Model and data versioning with MLflow and GreatExpectations
