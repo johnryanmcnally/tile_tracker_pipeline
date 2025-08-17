@@ -1,4 +1,4 @@
-<h1/>tile_project</h1>
+<h1/>Tile Tracker Pipeline</h1>
 A data pipeline to store and enrich Tile Tracker location data, built with Apache Airflow and PostgreSQL. For me, taking a career break did not mean taking a break from learning and keeping my skills sharp. I made time to read, code, and watch videos to upskill myself. This project is one of the results of that time spent.
 
 <h2/>Description</h2>
@@ -26,9 +26,9 @@ This image is a high-level map of the enire pipeline. The data originates from t
 
 There are 5 tasks in the DAG detailed below:
 
-*extract_tile_data* ([code](data_handling/)) - This task handles the API call to the Tile database to retrieve the raw data for all trackers and stores it in a permanent 'raw' data folder in JSON format. This folder is currently on my local machine, but a duplicate API call happens in AWS to load into an S3 bucket.
+*extract_tile_data* ([code](data_handling/extract_tile_data.py)) - This task handles the API call to the Tile database to retrieve the raw data for all trackers and stores it in a permanent 'raw' data folder in JSON format. This folder is currently on my local machine, but a duplicate API call happens in AWS to load into an S3 bucket.
 
-*feature_engineering* ([code](data_handling/)) - This task loads the raw JSON files and extracts the data for the 'John' tracker, which is the tracker I carry daily. The task then creates a few feature columns and trains an HDBScan model to cluster the latitude and longitude coordinates using the Haversine distance metric (distance on a sphere). The raw cluster labels are then refined using a 'direction similarity' feature, which analyzes how similar the direction (or bearing) of clusters are. If the similarity is above a threshold, the cluster gets replaced with -3, which indicates this cluster is likely during transit. Refining the clusters in this manner reduces the number of API calls in the following tasks, since the locations in transit will not give meaningful results.
+*feature_engineering* ([code](data_handling/feature_engineering.py)) - This task loads the raw JSON files and extracts the data for the 'John' tracker, which is the tracker I carry daily. The task then creates a few feature columns and trains an HDBScan model to cluster the latitude and longitude coordinates using the Haversine distance metric (distance on a sphere). The raw cluster labels are then refined using a 'direction similarity' feature, which analyzes how similar the direction (or bearing) of clusters are. If the similarity is above a threshold, the cluster gets replaced with -3, which indicates this cluster is likely during transit. Refining the clusters in this manner reduces the number of API calls in the following tasks, since the locations in transit will not give meaningful results.
 
 *reverse_geocode* ([code](data_handling/reverse_geocode.py)) - This task handles the API call to GoogleMaps Geocoding API. The mean latitude and longitude for each cluster is sent and the API returns possible addresses, place_ids (Google's internal id for a place), and location tags. The data is then processed to assign the first address returned to the cluster and all place_ids and location tags are stored in a list linked to the cluster label. The data are stored in separate parquet files in a temporary location for loading to PostgreSQL database in the following step.
 
