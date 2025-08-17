@@ -1,6 +1,9 @@
 <h1/>Tile Tracker Pipeline</h1>
 A data pipeline to store and enrich Tile Tracker location data, built with Apache Airflow and PostgreSQL. For me, taking a career break did not mean taking a break from learning and keeping my skills sharp. I made time to read, code, and watch videos to upskill myself. This project is one of the results of that time spent.
 
+---------------------------------------------------------------------
+**This project is a work in progess and will continue to be updated. See Future Work section**
+
 <h2/>Description</h2>
 This project has two main objectives:
 
@@ -35,3 +38,9 @@ There are 5 tasks in the DAG detailed below:
 *retrieve_weather* ([code](data_handling/retrieve_weather.py)) - This task calls the OpenMeteo API to return the hourly weather data for the average location of each day. First the data is grouped by day, taking the mean of the latitude and longitude. The means for the days are passed to the API, and it returns the hourly weather for that location. The hourly weather data is then merged with the original location data on the 'hour' from the datetime. The merged data is saved to a temporary location in a parquet file to be loaded to the database.
 
 *postgres_load*  ([code](data_handling/postgres_load.py)) - This task loads all of the parquet files from the temporary file location into respective tables in a PostgreSQL database using sqlalchemy.
+
+<h2/>Future Work</h2>
+The items listed here are currently in development:
+1. A dashboard using Streamlit to display important data metrics and interesting visualizations
+2. Various machine learning models with the intent of including automated training, evaluation, and deployment when new data arrives
+2a. Model and data versioning
