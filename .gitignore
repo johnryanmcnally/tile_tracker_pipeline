@@ -7,3 +7,4 @@ data_handling/save_state.csv
 /airflow/logs
 /data_handling/data_utils/__pycache__
 /airflow/simple_auth_manager_passwords.json.generated
+!/data_dashboard/images/tile_logo.png
