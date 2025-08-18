@@ -4,6 +4,8 @@ A data pipeline to store and enrich Tile Tracker location data, built with Apach
 ---------------------------------------------------------------------
 **This project is a work in progess and will continue to be updated. See Future Work section**
 
+Link to [dashboard](https://tiletracker.streamlit.app/) hosted on Streamlit
+
 <h2/>Description</h2>
 This project has two main objectives:
 
@@ -39,10 +41,19 @@ There are 5 tasks in the DAG detailed below:
 
 *postgres_load*  ([code](data_handling/postgres_load.py)) - This task loads all of the parquet files from the temporary file location into respective tables in a PostgreSQL database using sqlalchemy.
 
+<h2/>Dashboard</h2>
+To showcase some of the data that is in the PostgreSQL database, a [dashboard](https://tiletracker.streamlit.app/) was developed. Since the website is hosted on Streamlit's community app service, the app won't be running all the time. The image below shows what the dashboard looks like.
+
+<img width="3140" height="1465" alt="image" src="https://github.com/user-attachments/assets/32e67b12-a9a5-4c3b-b00a-5735aea1b14d" />
+
+Also, since the webapp is a hosted service, it does not have access to the PostgreSQL database from my local machine. To get around this I saved a sample of the data with only the columns relevant to the dashboard to an sqlite file, and stored it on github. This allows the webapp to query the sqlite file in the same exact way it would to the PostgreSQL database. The image below shows the pipeline to the webapp.
+
+<img width="2765" height="655" alt="image" src="https://github.com/user-attachments/assets/f187691a-ca04-4201-91e7-68d6112ec89f" />
+
+
 <h2/>Future Work</h2>
 The items listed here are currently in development:
 
-1. A dashboard using Streamlit to display important data metrics and interesting visualizations
-2. Various machine learning models using PyTorch with the intent of including automated training, evaluation, and deployment when new data arrives
+1. Various machine learning models using PyTorch with the intent of including automated training, evaluation, and deployment when new data arrives
 
-    2a. Model and data versioning with MLflow and GreatExpectations
+    1a. Model and data versioning with MLflow and GreatExpectations
