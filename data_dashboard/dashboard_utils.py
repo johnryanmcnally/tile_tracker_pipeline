@@ -8,6 +8,7 @@ import streamlit as st
 
 # Native
 import os
+import datetime
 
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun
 def get_db_connection():
@@ -23,6 +24,93 @@ def get_db_connection():
     except psycopg2.Error as e:
         st.error(f"Error connecting to the database: {e}")
         st.stop() # Stop the Streamlit app if connection fails
+
+# Function to fetch data health
+def tile_data_health(period):
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=period)
+    tile_total_count_query = f"""
+                SELECT COUNT(*)
+                FROM tile_data_john;
+                """
+    tile_delta_count_query = f"""
+                SELECT COUNT(*)
+                FROM tile_data_john
+                WHERE date::date BETWEEN '{start}' AND '{end}';
+                """
+
+    engine = get_db_connection()
+    # raw = pd.read_sql(rawquery, con=engine)
+    tile_total_count = pd.read_sql(tile_total_count_query, con=engine).values[0,0]
+    tile_delta_count = pd.read_sql(tile_delta_count_query, con=engine).values[0,0]
+    
+    return tile_total_count, tile_delta_count
+
+def google_data_health(period):
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=period)
+    tag_count_query = f"""
+WITH date_range_counts AS (
+    SELECT
+        t.tag,
+        COUNT(t.tag) AS date_range_count
+    FROM tags AS t
+    JOIN tile_data_john AS tdj
+        ON t.cluster_label = tdj.cluster_label
+    WHERE
+        tdj.date BETWEEN '{start}' AND '{end}'
+    GROUP BY t.tag
+),
+all_time_counts AS (
+    SELECT
+        t.tag,
+        COUNT(t.tag) AS all_time_count
+    FROM tags AS t
+    JOIN tile_data_john AS tdj -- This JOIN is the key correction.
+        ON t.cluster_label = tdj.cluster_label
+    GROUP BY t.tag
+)
+SELECT
+    atc.tag,
+    atc.all_time_count as tag_count,
+    COALESCE(drc.date_range_count, 0) as delta
+FROM all_time_counts AS atc
+LEFT JOIN date_range_counts AS drc
+    ON atc.tag = drc.tag
+WHERE
+    atc.tag NOT IN (
+        'street_address', 'plus_code', 'route', 'establishment', 'premise', 'subpremise',
+        'sublocality', 'sublocality_level_4', 'outlier', 'point_of_interest', 'transit'
+    )
+ORDER BY tag_count DESC
+;
+"""
+
+    engine = get_db_connection()
+    # raw = pd.read_sql(rawquery, con=engine)
+    tag_count = pd.read_sql(tag_count_query, con=engine)    
+    return tag_count
+
+def get_weather(period):
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=period)
+    weather_query = f"""
+SELECT
+	date,
+	AVG(temperature_2m * 5/9 + 32) as Temperature_F,
+	AVG(relative_humidity_2m) as RH,
+	AVG(precipitation) as precipitation_mm
+FROM weather
+WHERE date::date BETWEEN '{start}' AND '{end}'
+GROUP BY date
+ORDER BY date DESC
+                """
+
+    engine = get_db_connection()
+    # raw = pd.read_sql(rawquery, con=engine)
+    weather = pd.read_sql(weather_query, con=engine)
+    
+    return weather
 
 # Function to fetch data
 @st.cache_data(ttl=600) # Cache data for 10 minutes

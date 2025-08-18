@@ -29,10 +29,10 @@ tile_uuid = tilenames_reverse[tile_name]
 
 if __name__ == "__main__":
     # set this flag to test new code at the bottom, then move tested code to 'else' to save new save state
-    testing = True
+    testing = False
     # Option to rerun the api calls
-    rerun_geocode_api = False
-    rerun_weather_api = False
+    rerun_geocode_api = True
+    rerun_weather_api = True
     
     if testing:
         # start from save state

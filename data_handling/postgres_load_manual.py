@@ -1,0 +1,44 @@
+# Third Party
+import pandas as pd
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
+
+# Native
+import os
+
+STAGEDDATAPATH = 'data/staged/'
+
+# PostgreSQL credentials and database details
+load_dotenv() # take environment variables from .env.
+db_user = os.getenv("POSTGRESQL_USERNAME")
+db_password = os.getenv("POSTGRESQL_PWD")
+db_host = 'localhost'
+db_port = '5432'
+db_name = 'tile_db'
+
+# Create the SQLAlchemy engine
+engine = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
+files_to_load = ['tile_data_john.csv', # result of extract, process, cluster, and refine
+                 # reverse geocoding results
+                 'addresses.csv',
+                 'cluster_address.csv',
+                 'place_ids.csv',
+                 'tags.csv',
+                 # weather api results
+                 'weather.csv']
+for fname in files_to_load:
+    df = pd.read_csv(STAGEDDATAPATH + fname)
+    remove_cols = [col for col in df if 'unnamed' in col.lower()]
+    df = df.drop(columns=remove_cols)
+    df['tile_name'] = 'John'
+    table_name = fname.replace('.csv','').lower()
+    try:
+        df.to_sql(table_name, engine, if_exists='replace', index=True)
+        print(f"DataFrame successfully loaded into table '{table_name}' in PostgreSQL.")
+
+    except Exception as e:
+        print(f"Error loading DataFrame: {e}")
+
+
+if 'engine' in locals() and engine:
+    engine.dispose()
