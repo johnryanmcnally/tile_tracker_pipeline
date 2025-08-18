@@ -3,39 +3,39 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-
 # Native
 import datetime
 
 # Custom
 from dashboard_utils import * 
 
+# Sets the information on the browser tab
 st.set_page_config(layout="wide", page_title="Tile Dashboard", page_icon="data_dashboard/images/tile_logo.png")
-title = '**Location Tracker Dashboard**'
-# st.markdown(f"<h1 style='text-align: center; color: grey;'>{title}</h1>", unsafe_allow_html=True)
+
+# Title columns
 t1, t2, t3, t4 = st.columns([.6, .15, 1.25, .6])
 t2.image("data_dashboard/images/tile_logo.png", width = 75)
-t3.title(title, anchor='right')
+t3.title('**Location Tracker Dashboard**', anchor='right')
+
 # metric columns
 mt1, mt2, mt3 = st.columns([1,1.75,7])
 period = mt2.number_input(label='Period (Days)', min_value=0, step=1, value=7)
 mt3.write(f":grey[.]\n\n---------------------------------------------------------------------- Last {period} Days ----------------------------------------------------------------------")
 m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
+
 # graph columns
 col1, col2, col3, col4, col5 = st.columns([.01, .5, .5, 1.25, .25])
 title_font_size = 15
-# Retrieve data based on period
 
+# Retrieve data based on period
 tile_total_count, tile_delta_count = tile_data_health(period)
 tag_count = google_data_health(period).head(10)
 tag_count['prev_value'] = tag_count['tag_count'] - tag_count['delta']
 weather = get_weather(period)
 
 # Arrange Data on dashboard
-
-# Tile Data
-m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in last {period} days', border=True) # , delta_color='inverse'
-# col2.write(f"----------- Last {period} Days -----------")
+# Metric Data
+m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in last {period} days', border=True)
 m3.metric(label=f'**Most Visited Tag**', value=tag_count['tag'].values[0], border=True)
 m4.metric(label='**Average Temperature**', value = f"{weather['temperature_f'].mean():.1f} F", border=True)
 m5.metric(label='**Average RH**', value = f"{weather['rh'].mean():.1f}%", border=True)
@@ -58,7 +58,6 @@ chart = (bar + delta_bar).properties(
     title='Total Tag Counts vs. Delta'
 ).configure_title(
     fontSize=title_font_size,
-    # font='serif',
     color='darkgray',
     anchor='middle',
     dy=20
@@ -74,7 +73,6 @@ delta_chart = alt.Chart(tag_count).mark_bar().encode(
     title=f'Tag Deltas (Last {period} Days)'
 ).configure_title(
     fontSize=title_font_size,
-    # font='serif',
     color='darkgray',
     anchor='middle',
     dy=20
@@ -83,8 +81,7 @@ col3.altair_chart(delta_chart)
 
 
 # Weather Data
-weather = weather.melt('date')
-# col4.write(weather)
+weather = weather.melt('date') # transforms from short form to long form
 temperature = alt.Chart(weather[weather['variable']!='precipitation_mm']).mark_line().encode(
     x=alt.X('date:O', axis=alt.Axis(title='Date')),
     y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
@@ -104,7 +101,6 @@ weather_chart = (precipitation + temperature).resolve_scale(y='independent').pro
     title=f'Weather (Last {period} Days)'
 ).configure_title(
     fontSize=title_font_size,
-    # font='serif',
     color='darkgray',
     anchor='middle',
     dy=20

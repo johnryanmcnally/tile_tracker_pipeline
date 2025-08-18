@@ -11,10 +11,12 @@ import os
 import datetime
 import sqlite3
 
+# get sqlite connection for dashboard
 def get_sqlite_connection():
     conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
     return conn
 
+# ** OBSOLETE ** - moved to sqlite for cloud storage
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun
 def get_db_connection():
     load_dotenv() # take environment variables from .env.
@@ -30,7 +32,7 @@ def get_db_connection():
         st.error(f"Error connecting to the database: {e}")
         st.stop() # Stop the Streamlit app if connection fails
 
-# Function to fetch data health
+# Function to data from tile_data_john (Tile Tracker data)
 def tile_data_health(period):
     end = datetime.date.today()
     start = end - datetime.timedelta(days=period)
@@ -46,15 +48,17 @@ def tile_data_health(period):
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
-    # raw = pd.read_sql(rawquery, con=engine)
     tile_total_count = pd.read_sql(tile_total_count_query, con=engine).values[0,0]
     tile_delta_count = pd.read_sql(tile_delta_count_query, con=engine).values[0,0]
     
     return tile_total_count, tile_delta_count
 
+# Fuction to fetch data from GoogleMaps Places API
 def google_data_health(period):
     end = datetime.date.today()
     start = end - datetime.timedelta(days=period)
+
+    # this query counts the total occurence of tags and adds the delta within the date range
     tag_count_query = f"""
 WITH date_range_counts AS (
     SELECT
@@ -94,10 +98,11 @@ ORDER BY tag_count DESC
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
-    # raw = pd.read_sql(rawquery, con=engine)
     tag_count = pd.read_sql(tag_count_query, con=engine)    
     return tag_count
 
+
+# Function to fetch OpenMeteo weather data
 def get_weather(period):
     end = datetime.date.today()
     start = end - datetime.timedelta(days=period)
@@ -115,7 +120,6 @@ ORDER BY date DESC
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
-    # raw = pd.read_sql(rawquery, con=engine)
     weather = pd.read_sql(weather_query, con=engine)
     
     return weather
