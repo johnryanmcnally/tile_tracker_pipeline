@@ -9,6 +9,11 @@ import streamlit as st
 # Native
 import os
 import datetime
+import sqlite3
+
+def get_sqlite_connection():
+    conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
+    return conn
 
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun
 def get_db_connection():
@@ -36,10 +41,11 @@ def tile_data_health(period):
     tile_delta_count_query = f"""
                 SELECT COUNT(*)
                 FROM tile_data_john
-                WHERE date::date BETWEEN '{start}' AND '{end}';
+                WHERE date BETWEEN '{start}' AND '{end}';
                 """
 
-    engine = get_db_connection()
+    # engine = get_db_connection()
+    engine = get_sqlite_connection()
     # raw = pd.read_sql(rawquery, con=engine)
     tile_total_count = pd.read_sql(tile_total_count_query, con=engine).values[0,0]
     tile_delta_count = pd.read_sql(tile_delta_count_query, con=engine).values[0,0]
@@ -86,7 +92,8 @@ ORDER BY tag_count DESC
 ;
 """
 
-    engine = get_db_connection()
+    # engine = get_db_connection()
+    engine = get_sqlite_connection()
     # raw = pd.read_sql(rawquery, con=engine)
     tag_count = pd.read_sql(tag_count_query, con=engine)    
     return tag_count
@@ -97,16 +104,17 @@ def get_weather(period):
     weather_query = f"""
 SELECT
 	date,
-	AVG(temperature_2m * 5/9 + 32) as Temperature_F,
-	AVG(relative_humidity_2m) as RH,
+	AVG(temperature_2m * 5/9 + 32) as temperature_f,
+	AVG(relative_humidity_2m) as rh,
 	AVG(precipitation) as precipitation_mm
 FROM weather
-WHERE date::date BETWEEN '{start}' AND '{end}'
+WHERE date BETWEEN '{start}' AND '{end}'
 GROUP BY date
 ORDER BY date DESC
                 """
 
-    engine = get_db_connection()
+    # engine = get_db_connection()
+    engine = get_sqlite_connection()
     # raw = pd.read_sql(rawquery, con=engine)
     weather = pd.read_sql(weather_query, con=engine)
     
