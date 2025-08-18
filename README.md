@@ -42,6 +42,7 @@ There are 5 tasks in the DAG detailed below:
 *postgres_load*  ([code](data_handling/postgres_load.py)) - This task loads all of the parquet files from the temporary file location into respective tables in a PostgreSQL database using sqlalchemy.
 
 <h2/>Dashboard</h2>
+
 To showcase some of the data that is in the PostgreSQL database, a [dashboard](https://tiletracker.streamlit.app/) was developed. Since the website is hosted on Streamlit's community app service, the app won't be running all the time. The image below shows what the dashboard looks like.
 
 <img width="3140" height="1465" alt="image" src="https://github.com/user-attachments/assets/32e67b12-a9a5-4c3b-b00a-5735aea1b14d" />
