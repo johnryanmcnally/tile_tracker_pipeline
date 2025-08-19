@@ -1,13 +1,12 @@
 # Third Party
 import streamlit as st
 import pandas as pd
+import numpy as np
 import altair as alt
 # import folium as fol
 # from streamlit_folium import st_folium
 # import geopandas as gpd
 # from shapely.geometry import Point
-import numpy as np
-
 
 # Native
 import datetime
@@ -42,7 +41,6 @@ weather = get_weather(period)
 # Arrange Data on dashboard
 # Tile Data
 m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in last {period} days', border=True) # , delta_color='inverse'
-# col2.write(f"----------- Last {period} Days -----------")
 m3.metric(label=f'**Most Visited Tag**', value=tag_count['tag'].values[0], border=True)
 m4.metric(label='**Average Temperature**', value = f"{weather['temperature_f'].mean():.1f} F", border=True)
 m5.metric(label='**Average RH**', value = f"{weather['rh'].mean():.1f}%", border=True)
@@ -74,21 +72,24 @@ latitude_hist, longitude_hist = make_lat_lon_hist(df, rotate_value)
 m1, m2, m3, m4, m5 = st.columns([.35,.25,.5,.25,.25], vertical_alignment='top', gap=None)
 md1, md2, md3 = st.columns([1,.5,1], vertical_alignment='top')
 
+# Formatting map and graphs
 height = 350
 width = 350
-
-# Formatting map and graphs
 combine = alt.hconcat(map_chart.properties(height=height, width=width), 
                       latitude_hist.properties(height=height), 
                       padding={'bottom':0,'right':0,'left':0,'top':0}, spacing = 10) # autosize='fit', bounds='flush'
 m3.altair_chart(combine, use_container_width=False)
 m3.altair_chart(longitude_hist.properties(width=width), use_container_width=False)
 
-top_country = mapdata[(-1*rotate_value - 90 < mapdata['longitude']) & (mapdata['longitude'] < -1*rotate_value + 90)]['country'].value_counts().index[0]
-m2.metric(label='Most Points in', value=f"{top_country}")
-m2.metric(label=f'Clusters in {top_country}', value=mapdata[mapdata['country']==top_country]['cluster_label'].nunique())
-m2.metric(label=f'Top Label in {top_country}', value=mapdata[mapdata['country']==top_country]['tag'].value_counts().index[0])
-
+try:
+    top_country = mapdata[(-1*rotate_value - 90 < mapdata['longitude']) & (mapdata['longitude'] < -1*rotate_value + 90)]['country'].value_counts().index[0]
+    m2.metric(label='Most Points in', value=f"{top_country}")
+    m2.metric(label=f'Clusters in {top_country}', value=mapdata[mapdata['country']==top_country]['cluster_label'].nunique())
+    m2.metric(label=f'Top Label in {top_country}', value=mapdata[mapdata['country']==top_country]['tag'].value_counts().index[0])
+except:
+    m2.metric(label='Try Rotating the Map', value=f"")
+    m2.metric(label=f'No Points Available', value=f"")
+    m2.metric(label=f'No Points Available', value=f"")
 # Attempt at folium map
 # m = fol.Map([mean_lat, mean_lon], zoom_start=5)
 

@@ -106,7 +106,7 @@ def get_weather(period):
     weather_query = f"""
 SELECT
 	date,
-	AVG(temperature_2m * 5/9 + 32) as temperature_f,
+	AVG(temperature_2m * 9/5 + 32) as temperature_f,
 	AVG(relative_humidity_2m) as rh,
 	AVG(precipitation) as precipitation_mm
 FROM weather
@@ -227,14 +227,14 @@ def make_dashboard_graphs(period, tag_count, weather):
         y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
         color=alt.Color('variable', scale=alt.Scale(domain=['temperature_f', 'rh', 'precipitation'],
                                                     range=['orange', 'lightblue', 'grey'])).legend(orient='top', title=None),
-        tooltip = []
+        tooltip = ['date','value','variable']
     )
 
     precipitation = alt.Chart(weather[weather['variable']=='precipitation_mm']).mark_bar().encode(
         x=alt.X('date:O'),
         y = alt.Y('value', axis=alt.Axis(title='Precipitation (mm)')),
         color= alt.value('grey'),
-        tooltip=[]
+        tooltip=['date','value','variable']
     )
 
     weather_chart = (precipitation + temperature).resolve_scale(y='independent').properties(
@@ -275,7 +275,7 @@ def make_altair_map(df, rotate_value):
 
 @st.cache_data
 def make_lat_lon_hist(df, rotate_value):
-    latitude_hist = alt.Chart(df).mark_bar(height=5).transform_filter(
+    latitude_hist = alt.Chart(df).mark_bar(height=6).transform_filter(
             (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
         ).encode(
         y=alt.Y("Latitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-90,90]), axis=alt.Axis(grid=False, title=None, labels=False)),
@@ -285,7 +285,7 @@ def make_lat_lon_hist(df, rotate_value):
         width=100
     )
 
-    longitude_hist = alt.Chart(df).mark_bar(width=5).transform_filter(
+    longitude_hist = alt.Chart(df).mark_bar(width=6).transform_filter(
             (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
         ).encode(
         x=alt.X("Longitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-1*rotate_value-90,-1*rotate_value+90]), axis=alt.Axis(grid=False, title=None, labels=False)),
