@@ -3,5 +3,5 @@ base="dark"
 backgroundColor="#1E1E1E" # A very dark gray
 secondaryBackgroundColor="#2D2D2D" # A slightly lighter dark gray for sidebar
 primaryColor="#FF4B4B"
-textColor="#FFFFFF"
+textColor="#c2c2c2ff"
 font="sans serif"
