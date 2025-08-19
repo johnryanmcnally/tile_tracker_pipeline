@@ -69,7 +69,7 @@ map_chart = make_altair_map(df, rotate_value)
 latitude_hist, longitude_hist = make_lat_lon_hist(df, rotate_value)
 
 # columns for formating graphs and metrics
-m1, m2, m3, m4, m5 = st.columns([.35,.25,.5,.25,.25], vertical_alignment='top', gap=None)
+m1, m2, m3, m4, m5 = st.columns([.35,.25,.5,.25,.25], vertical_alignment='top', gap='small')
 md1, md2, md3 = st.columns([1,.5,1], vertical_alignment='top')
 
 # Formatting map and graphs
