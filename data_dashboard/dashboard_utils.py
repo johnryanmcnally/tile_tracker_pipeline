@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import streamlit as st
 import altair as alt
+from vega_datasets import data
 
 # Native
 import os
@@ -140,12 +141,15 @@ WITH rank AS (
         w.cloud_cover,
         w.precipitation,
         t.tag,
+        ca.country,
         ROW_NUMBER() OVER(PARTITION BY t.cluster_label ORDER BY tdj.date DESC, tdj.time DESC) AS rn
     FROM tags AS t 
     INNER JOIN tile_data_john AS tdj 
         ON t.cluster_label = tdj.cluster_label
     INNER JOIN weather AS w
         ON t."index" = w."index"
+    INNER JOIN cluster_address as ca
+		ON t.cluster_label = ca.cluster_label
     WHERE 
         t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
         AND
@@ -156,6 +160,7 @@ SELECT
     cluster_label,
     date,
     time,
+    country, 
     latitude,
     longitude,
     elevation,
@@ -243,6 +248,53 @@ def make_dashboard_graphs(period, tag_count, weather):
     )
 
     return tag_chart, delta_tag_chart, weather_chart
+
+@st.cache_data
+def make_altair_map(df, rotate_value):
+    # background for map
+    sphere = alt.Chart(alt.sphere()).mark_geoshape(
+        fill="aliceblue", stroke="black", strokeWidth=1.5
+    )
+    # country projections
+    countries = alt.topo_feature(data.world_110m.url, 'countries')
+    world = alt.Chart(countries).mark_geoshape(
+        fill="lightgray", stroke="black"
+    )
+    # tile tracker points - the filter only renders the points that are on the sphere facing the user
+    points = alt.Chart(df).mark_circle(opacity=1, tooltip=True, stroke="black", strokeWidth=.75).transform_filter(
+        (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
+    ).encode(
+            longitude="Longitude:Q",
+            latitude="Latitude:Q",
+            color = alt.value('#FF4B4B')
+        )
+
+    map_chart = alt.layer(sphere+world+points).project(
+        type="orthographic", rotate=alt.expr(f"[{rotate_value}, 0, 0]"))
+    return map_chart
+
+@st.cache_data
+def make_lat_lon_hist(df, rotate_value):
+    latitude_hist = alt.Chart(df).mark_bar(height=5).transform_filter(
+            (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
+        ).encode(
+        y=alt.Y("Latitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-90,90]), axis=alt.Axis(grid=False, title=None, labels=False)),
+        x=alt.X('count()', axis=alt.Axis(grid=False, title=None, labels=False)),
+        color = alt.Color('count()', scale=alt.Scale(scheme='yelloworangered'), legend=None)
+    ).properties(
+        width=100
+    )
+
+    longitude_hist = alt.Chart(df).mark_bar(width=5).transform_filter(
+            (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
+        ).encode(
+        x=alt.X("Longitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-1*rotate_value-90,-1*rotate_value+90]), axis=alt.Axis(grid=False, title=None, labels=False)),
+        y=alt.Y('count()', axis=alt.Axis(grid=False, title=None, labels=False), scale=alt.Scale(reverse=True)),
+        color = alt.Color('count()', scale=alt.Scale(scheme='yelloworangered'), legend=None)
+    ).properties(
+        height=100
+    )
+    return latitude_hist, longitude_hist
 
 # @st.cache_data(ttl=600)
 def make_plotly_map(plotdf, filter_selection):

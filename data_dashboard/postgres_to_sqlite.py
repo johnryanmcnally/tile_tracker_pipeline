@@ -65,3 +65,14 @@ LIMIT {limit};
 df = pd.read_sql(query, con=conn)
 df.to_sql('weather', sqlite_conn, if_exists='replace', index=True)
 print('saved weather to sqlite')
+
+query = f"""
+SELECT
+    cluster_label,
+    country
+FROM cluster_address
+LIMIT {limit};
+"""
+df = pd.read_sql(query, con=conn)
+df.to_sql('cluster_address', sqlite_conn, if_exists='replace', index=True)
+print('saved cluster_address to sqlite')
