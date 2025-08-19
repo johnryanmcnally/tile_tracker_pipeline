@@ -2,6 +2,12 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import folium as fol
+from streamlit_folium import st_folium
+from vega_datasets import data
+import geopandas as gpd
+from shapely.geometry import Point
+import numpy as np
 
 
 # Native
@@ -32,7 +38,6 @@ tag_count['prev_value'] = tag_count['tag_count'] - tag_count['delta']
 weather = get_weather(period)
 
 # Arrange Data on dashboard
-
 # Tile Data
 m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in last {period} days', border=True) # , delta_color='inverse'
 # col2.write(f"----------- Last {period} Days -----------")
@@ -41,73 +46,76 @@ m4.metric(label='**Average Temperature**', value = f"{weather['temperature_f'].m
 m5.metric(label='**Average RH**', value = f"{weather['rh'].mean():.1f}%", border=True)
 m6.metric(label='**Average Precipitation**', value = f"{weather['precipitation_mm'].mean():.2f} mm", border=True)
 
-# Google Data
-bar = alt.Chart(tag_count).mark_bar().encode(
-    y = alt.Y('tag:N', sort='-x', axis=alt.Axis(title=None)),
-    x = alt.X('tag_count', axis=alt.Axis(title='Counts')),
-    tooltip=['tag','tag_count','delta'],
-    color = alt.value('grey')
-)
-delta_bar = alt.Chart(tag_count).mark_rect(height=15).encode(
-    y = alt.Y('tag:N', sort='-x'),
-    x = alt.X('prev_value'),
-    x2 = 'tag_count',
-    color=alt.value('green')
-)
-chart = (bar + delta_bar).properties(
-    title='Total Tag Counts vs. Delta'
-).configure_title(
-    fontSize=title_font_size,
-    # font='serif',
-    color='darkgray',
-    anchor='middle',
-    dy=20
-)
-col2.altair_chart(chart)
-
-delta_chart = alt.Chart(tag_count).mark_bar().encode(
-    y = alt.Y('tag:N', sort='-x', axis=alt.Axis(title=None)),
-    x = alt.X('delta', axis=alt.Axis(title='Counts')),
-    tooltip=['tag','delta'],
-    color = alt.value('green')    
-).properties(
-    title=f'Tag Deltas (Last {period} Days)'
-).configure_title(
-    fontSize=title_font_size,
-    # font='serif',
-    color='darkgray',
-    anchor='middle',
-    dy=20
-)
-col3.altair_chart(delta_chart)
-
-
-# Weather Data
+# Make Graphs
 weather = weather.melt('date')
-# col4.write(weather)
-temperature = alt.Chart(weather[weather['variable']!='precipitation_mm']).mark_line().encode(
-    x=alt.X('date:O', axis=alt.Axis(title='Date')),
-    y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
-    color=alt.Color('variable', scale=alt.Scale(domain=['temperature_f', 'rh', 'precipitation'],
-                                                range=['orange', 'lightblue', 'grey'])).legend(orient='top', title=None),
-    tooltip = []
-)
-
-precipitation = alt.Chart(weather[weather['variable']=='precipitation_mm']).mark_bar().encode(
-    x=alt.X('date:O'),
-    y = alt.Y('value', axis=alt.Axis(title='Precipitation (mm)')),
-    color= alt.value('grey'),
-    tooltip=[]
-)
-
-weather_chart = (precipitation + temperature).resolve_scale(y='independent').properties(
-    title=f'Weather (Last {period} Days)'
-).configure_title(
-    fontSize=title_font_size,
-    # font='serif',
-    color='darkgray',
-    anchor='middle',
-    dy=20
-)
+tag_chart, delta_tag_chart, weather_chart = make_dashboard_graphs(period, tag_count, weather)
+# Google Data
+col2.altair_chart(tag_chart)
+col3.altair_chart(delta_tag_chart)
+# Weather Data
 col4.altair_chart(weather_chart)
 
+
+# Make Map
+map1, map2, map3 = st.columns([2,1,2])
+map2.subheader('Map', anchor='middle')
+mapdata = fetch_data(period)
+
+df = mapdata[['longitude','latitude']].copy().rename(columns={'latitude':'Latitude','longitude':'Longitude'})
+
+@st.cache_data
+def make_altair_map(df, rotate_value):
+    # background for map
+    sphere = alt.Chart(alt.sphere()).mark_geoshape(
+        fill="aliceblue", stroke="black", strokeWidth=1.5
+    )
+    # country projections
+    countries = alt.topo_feature(data.world_110m.url, 'countries')
+    world = alt.Chart(countries).mark_geoshape(
+        fill="lightgray", stroke="black"
+    )
+    # tile tracker points - the filter only renders the points that are on the sphere facing the user
+    points = alt.Chart(df).mark_circle(opacity=0.35, tooltip=True, stroke="black").transform_filter(
+        (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
+    ).encode(
+            longitude="Longitude:Q",
+            latitude="Latitude:Q",
+        )
+
+    map_chart = alt.layer(sphere+world+points).project(
+        type="orthographic", rotate=alt.expr(f"[{rotate_value}, 0, 0]"))
+    return map_chart
+
+# Native Altair slider was causing rendering issues - streamlit slider has significantly slower performance... but it works
+rotate_param = map2.slider("Rotate Longitude", min_value=-180, max_value=180, value=-int(df['Longitude'].mean()), step=90)
+
+map_chart = make_altair_map(df, rotate_param)
+st.altair_chart(map_chart)
+
+
+# Attempt at folium map
+# m = fol.Map([mean_lat, mean_lon], zoom_start=5)
+
+# for i, data in mapdata.iterrows():
+#     tooltip = fol.features.Tooltip(
+#     f"Cluster: {data['cluster_label']}",
+#     style="font-size: 12px;" # background-color: lightblue;  border: 1px solid blue;
+#     )
+#     popup = fol.features.Popup(
+#         f"""
+#         Cluster: {data['cluster_label']}<br>
+#         Lat: {data['latitude']:.5f}<br>
+#         Lon: {data['longitude']:.5f}
+#         """,
+#         style="font-size: 12px;"
+#     )
+#     fol.CircleMarker(
+#         location=[data['latitude'], data['longitude']],
+#         fill = True,
+#         radius = 3,
+#         tooltip= tooltip,
+#         popup= popup
+#     ).add_to(m)
+# map1, map2, map3 = st.columns([.2,1,.1])
+# with map2:
+#     st_folium(m, use_container_width=True) 

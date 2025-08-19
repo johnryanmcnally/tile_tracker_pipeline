@@ -27,7 +27,9 @@ limit = 100000
 
 query = f"""
 SELECT
+    datetime,
     date,
+    time,
     latitude,
     longitude,
     cluster_label
@@ -54,7 +56,9 @@ SELECT
     date,
     temperature_2m,
     relative_humidity_2m,
-    precipitation
+    precipitation,
+    elevation_meters_asl,
+    cloud_cover
 FROM weather
 LIMIT {limit};
 """

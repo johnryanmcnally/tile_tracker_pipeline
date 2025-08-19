@@ -5,6 +5,7 @@ import psycopg2
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import streamlit as st
+import altair as alt
 
 # Native
 import os
@@ -115,80 +116,136 @@ ORDER BY date DESC
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
-    # raw = pd.read_sql(rawquery, con=engine)
     weather = pd.read_sql(weather_query, con=engine)
     
     return weather
 
 # Function to fetch data
-@st.cache_data(ttl=600) # Cache data for 10 minutes
-def fetch_data(start, end):
-    rawquery = f"""
-                SELECT date, latitude, longitude
-                FROM tile_data_john
-                WHERE date::date BETWEEN '{start}' AND '{end}'
-                ;
-            """
+@st.cache_data
+def fetch_data(period):
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=period)
+    # Select the first row for each cluster label
     clusterquery = f"""
-                SELECT DISTINCT ON (t.cluster_label)
-                    tdj.date,
-                    tdj.time,
-                    tdj.latitude,
-                    tdj.longitude,
-                    w.elevation_meters_asl AS elevation,
-                    w.temperature_2m AS temperature,
-                    w.relative_humidity_2m AS relative_humidity,
-                    w.cloud_cover,
-                    w.precipitation,
-                    tdj.norm_cluster_label,
-                    t.tag,
-                    a.address
-                FROM tags AS t 
-                INNER JOIN tile_data_john AS tdj ON t.cluster_label = tdj.cluster_label
-                INNER JOIN addresses AS a ON t.cluster_label = a.cluster_label
-                INNER JOIN weather AS w ON t.index = w.index
-                WHERE 
-                    t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
-                    AND
-                    tdj.date::date BETWEEN '{start}' AND '{end}'
-                ;
-            """
-    normalizedquery = f"""
-                SELECT
-                    tdj.date,
-                    tdj.latitude,
-                    tdj.longitude,
-                    w.elevation_meters_asl AS elevation,
-                    w.temperature_2m AS temperature,
-                    w.relative_humidity_2m AS relative_humidity,
-                    w.cloud_cover,
-                    w.precipitation,
-                    tdj.norm_cluster_label,
-                    t.tag,
-                    a.address	
-                FROM tags AS t 
-                INNER JOIN tile_data_john AS tdj ON t.norm_cluster_label = tdj.norm_cluster_label
-                INNER JOIN addresses AS a ON t.norm_cluster_label = a.norm_cluster_label
-                INNER JOIN weather AS w ON t.index = w.index
-                WHERE 
-                    t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
-                    AND
-                    tdj.date::date BETWEEN '{start}' AND '{end}'
-                ;
-            """
-                #     SELECT DISTINCT ON (norm_cluster_label) norm_cluster_label, date, latitude, longitude
-                # FROM tile_data_john
-                # WHERE date::date BETWEEN '{start}' AND '{end}'
-    engine = get_db_connection()
-    # raw = pd.read_sql(rawquery, con=engine)
-    cluster = pd.read_sql(clusterquery, con=engine)
-    # norm = pd.read_sql(normalizedquery, con=engine)
-    raw, norm = pd.DataFrame(), pd.DataFrame()
+WITH rank AS (
+    SELECT 
+        t.cluster_label,
+        tdj.date,
+        tdj.time,
+        tdj.latitude,
+        tdj.longitude,
+        w.elevation_meters_asl AS elevation,
+        w.temperature_2m AS temperature,
+        w.relative_humidity_2m AS relative_humidity,
+        w.cloud_cover,
+        w.precipitation,
+        t.tag,
+        ROW_NUMBER() OVER(PARTITION BY t.cluster_label ORDER BY tdj.date DESC, tdj.time DESC) AS rn
+    FROM tags AS t 
+    INNER JOIN tile_data_john AS tdj 
+        ON t.cluster_label = tdj.cluster_label
+    INNER JOIN weather AS w
+        ON t."index" = w."index"
+    WHERE 
+        t.tag NOT IN ('street_address','plus_code','route','premise','subpremise','establishment','point_of_interest')
+        AND
+        tdj.date BETWEEN '{start}' AND '{end}'
+)
 
-    return raw, cluster, norm
+SELECT
+    cluster_label,
+    date,
+    time,
+    latitude,
+    longitude,
+    elevation,
+    temperature,
+    relative_humidity,
+    cloud_cover,
+    precipitation,
+    tag
+FROM rank
+WHERE rn = 1;
+"""
+
+    # engine = get_db_connection()
+    engine = get_sqlite_connection()
+    cluster = pd.read_sql(clusterquery, con=engine)
+
+    return cluster
+
+# Function to move established graphs to utils
+def make_dashboard_graphs(period, tag_count, weather):
+    title_font_size = 15
+
+    # Total vs Delta Tag Chart
+    bar = alt.Chart(tag_count).mark_bar().encode(
+    y = alt.Y('tag:N', sort='-x', axis=alt.Axis(title=None)),
+    x = alt.X('tag_count', axis=alt.Axis(title='Counts')),
+    tooltip=['tag','tag_count','delta'],
+    color = alt.value('grey')
+    )
+    delta_bar = alt.Chart(tag_count).mark_rect(height=15).encode(
+        y = alt.Y('tag:N', sort='-x'),
+        x = alt.X('prev_value'),
+        x2 = 'tag_count',
+        color=alt.value('green')
+    )
+    tag_chart = (bar + delta_bar).properties(
+        title='Total Tag Counts vs. Delta'
+    ).configure_title(
+        fontSize=title_font_size,
+        # font='serif',
+        color='darkgray',
+        anchor='middle',
+        dy=20
+    )
+
+    # Delta Tag Chart
+    delta_tag_chart = alt.Chart(tag_count).mark_bar().encode(
+        y = alt.Y('tag:N', sort='-x', axis=alt.Axis(title=None)),
+        x = alt.X('delta', axis=alt.Axis(title='Counts')),
+        tooltip=['tag','delta'],
+        color = alt.value('green')    
+    ).properties(
+        title=f'Tag Deltas (Last {period} Days)'
+    ).configure_title(
+        fontSize=title_font_size,
+        # font='serif',
+        color='darkgray',
+        anchor='middle',
+        dy=20
+    )
+
+    temperature = alt.Chart(weather[weather['variable']!='precipitation_mm']).mark_line().encode(
+        x=alt.X('date:O', axis=alt.Axis(title='Date')),
+        y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
+        color=alt.Color('variable', scale=alt.Scale(domain=['temperature_f', 'rh', 'precipitation'],
+                                                    range=['orange', 'lightblue', 'grey'])).legend(orient='top', title=None),
+        tooltip = []
+    )
+
+    precipitation = alt.Chart(weather[weather['variable']=='precipitation_mm']).mark_bar().encode(
+        x=alt.X('date:O'),
+        y = alt.Y('value', axis=alt.Axis(title='Precipitation (mm)')),
+        color= alt.value('grey'),
+        tooltip=[]
+    )
+
+    weather_chart = (precipitation + temperature).resolve_scale(y='independent').properties(
+        title=f'Weather (Last {period} Days)'
+    ).configure_title(
+        fontSize=title_font_size,
+        # font='serif',
+        color='darkgray',
+        anchor='middle',
+        dy=20
+    )
+
+    return tag_chart, delta_tag_chart, weather_chart
 
 # @st.cache_data(ttl=600)
-def make_map(plotdf, filter_selection):
+def make_plotly_map(plotdf, filter_selection):
     load_dotenv() # take environment variables from .env.
     MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN")
     color = {'Raw':'date','Clustered':'cluster_label','Normalized':'norm_cluster_label'}
