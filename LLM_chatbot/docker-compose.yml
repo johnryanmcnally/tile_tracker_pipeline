@@ -1,0 +1,87 @@
+services:
+  # Service for the Ollama large language model server
+  # This service will now only run the Ollama server daemon.
+  ollama:
+    build:
+      context: . # Build context is the current directory (LLM_chatbot)
+      dockerfile: Dockerfile_ollama
+    container_name: ollama_server
+    ports:
+      - "11434:11434" # Map port 11434 on the host to 11434 in the container
+    volumes:
+      - ollama_data:/root/.ollama # Persist Ollama model data to a named volume
+    # Directly run 'ollama serve' as the main command for this container.
+    # The entrypoint and previous command that tried to pull models directly are removed.
+    command: ["serve"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 10s
+      timeout: 5s # Increased timeout for health check
+      retries: 3 # More retries to allow for server startup
+      start_period: 10s # Sufficient time for the Ollama server to start
+    networks:
+      - joya_network # Connect to a custom network for inter-service communication
+
+  # NEW SERVICE: Initializes Ollama models
+  # This temporary service will pull the necessary models once the 'ollama' server is healthy.
+  init-ollama:
+    build:
+      context: . # Build context is the current directory (LLM_chatbot)
+      dockerfile: Dockerfile_ollama
+    container_name: ollama_initializer
+    networks:
+      - joya_network
+    depends_on:
+      ollama:
+        condition: service_healthy # Ensure Ollama server is running before attempting to pull models
+    environment:
+      # Set the OLLAMA_HOST to point to the ollama service
+      - OLLAMA_HOST=http://ollama:11434
+    # Command to pull the necessary models.
+    # We use 'bash -c' to execute multiple commands in sequence.
+    entrypoint: ["bash", "-c"]
+    command: >
+      "
+      echo '--- Waiting for Ollama server to be fully responsive ---';
+      until curl -s http://ollama:11434/api/tags > /dev/null; do
+        echo 'Ollama server not yet responsive, waiting 5 seconds...';
+        sleep 5;
+      done;
+      echo '--- Ollama server is responsive. Pausing for a few seconds before initializing models... ---';
+      sleep 5;
+      echo '--- Initializing models ---';
+      ollama pull gemma3:1b || { echo 'ERROR: Failed to pull gemma3:1b model.'; exit 1; };
+      ollama pull nomic-embed-text || { echo 'ERROR: Failed to pull nomic-embed-text model.'; exit 1; };
+      echo '--- Ollama models initialized successfully ---';
+      "
+    
+    # >
+    # "echo '--- Waiting for Ollama server to be fully responsive ---'; until curl -s http://ollama:11434/api/tags > /dev/null; do echo 'Ollama server not yet responsive, waiting 5 seconds...'; sleep 5; done; echo '--- Ollama server is responsive. Pausing for a few seconds before initializing models... ---'; sleep 5; echo '--- Initializing models ---'; ollama pull gemma3:1b || { echo 'ERROR: Failed to pull gemma3:1b model.'; exit 1; }; ollama pull nomic-embed-text || { echo 'ERROR: Failed to pull nomic-embed-text model.'; exit 1; }; echo '--- Ollama models initialized successfully ---';"
+
+  # Service for your FastAPI application
+  joya_api:
+    build:
+      context: . # Build context is the current directory (LLM_chatbot)
+      dockerfile: Dockerfile_joya_api # Use the custom Dockerfile for joya_api
+    container_name: joya_fastapi
+    ports:
+      - "8000:8000" # Map port 8000 on the host to 8000 in the container
+    environment:
+      # Set the CHROMA_DB_PATH environment variable for the FastAPI app
+      # This path is relative to the WORKDIR /app inside the container
+      CHROMA_DB_PATH: "./chroma_langchain_db"
+    depends_on:
+      # Ensure Ollama models are initialized by 'init-ollama' before starting the FastAPI app
+      init-ollama:
+        condition: service_completed_successfully # Wait for init-ollama to finish its job
+    networks:
+      - joya_network # Connect to the same custom network as Ollama
+
+# Define named volumes for persistent data
+volumes:
+  ollama_data: # Volume to store Ollama models, ensuring models persist across container restarts
+
+# Define a custom network for the services to communicate with each other
+networks:
+  joya_network:
+    driver: bridge
