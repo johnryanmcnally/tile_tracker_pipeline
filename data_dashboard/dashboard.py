@@ -90,6 +90,18 @@ except:
     m2.metric(label='Try Rotating the Map', value=f"")
     m2.metric(label=f'No Points Available', value=f"")
     m2.metric(label=f'No Points Available', value=f"")
+
+
+# Joya Chatbot section
+# ** Just load Vertex AI App into Streamlit **
+gradio_interface_url = "https://genai-app-travelstorygeneration-1-1756046827551-965790274455.us-central1.run.app/?key=kkosf48reph1b6f4"
+
+chat1, chat2, chat3 = st.columns([.35,1,.25])
+# Load the Gradio interface using an iframe
+chat2.write(f'<iframe src="{gradio_interface_url}" width="800" height="600"></iframe>',
+         unsafe_allow_html=True) 
+
+
 # Attempt at folium map
 # m = fol.Map([mean_lat, mean_lon], zoom_start=5)
 
