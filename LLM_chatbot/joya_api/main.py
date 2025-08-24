@@ -1,7 +1,12 @@
+# Third Party
 from fastapi import FastAPI
+from magnum import Magnum # for AWS Lambda
+
+# Custom
 import functions
 
 app = FastAPI()
+handler = Magnum(app) # allows lambda to interact with app
 
 @app.get("/")
 def health_check():

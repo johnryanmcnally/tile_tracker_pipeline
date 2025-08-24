@@ -2,7 +2,6 @@
 FROM ollama/ollama:latest
 
 # Run apt update and install curl
-# The -y flag automatically answers 'yes' to prompts
 RUN apt-get update && apt-get install -y curl
 
 # Expose the Ollama port

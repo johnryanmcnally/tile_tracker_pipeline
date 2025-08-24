@@ -1,29 +1,28 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9-slim-bookworm
+# base image
+FROM python:3.13-slim-bookworm
 
-# Set the working directory in the container
+# set working directory
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl
+# install curl -- I don't think this is necessary anymore in this file
+# RUN apt-get update && apt-get install -y curl
 
-# Install system dependencies needed for sqlite (used by Chroma DB)
+# Install system dependencies needed for sqlite
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the working directory
-COPY joya_api/requirements.txt .
+# copy files
+COPY joya_api/api_requirements.txt .
 
-# Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# install packages
+RUN pip install --no-cache-dir -r api_requirements.txt
 
-# Copy the entire joya_api directory into the container
-# This includes main.py, functions.py, and chroma_langchain_db
+# Copy the joya_api directory into the container
 COPY joya_api/ .
 
 # Expose the port that FastAPI will run on
 EXPOSE 8000
 
-# Command to run the FastAPI application using Uvicorn
-# The --host 0.0.0.0 makes the server accessible from outside the container
+# run the FastAPI using Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

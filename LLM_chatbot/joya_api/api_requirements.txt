@@ -1,4 +1,5 @@
 fastapi
+magnum
 uvicorn
 langchain-ollama
 langchain-core

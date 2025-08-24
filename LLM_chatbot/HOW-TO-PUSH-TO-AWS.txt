@@ -1,0 +1,33 @@
+Writing this down because it was a headache
+
+*** ECR-PRIVATE ***
+open powershell
+
+type
+aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin https://767397789880.dkr.ecr.us-east-2.amazonaws.com
+
+list images
+docker images
+
+tag image
+docker tag <image_id> <repository uri>:<tag> -- example: docker tag 90f8221d8860 767397789880.dkr.ecr.us-east-2.amazonaws.com/joya_chatbot/joya_api:latest 
+
+push image
+docker push <repository uri> -- example: docker push public.ecr.aws/f3l3r6z9/joya_api
+
+
+
+*** ECR-PUBLIC ***
+open powershell
+
+type
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin https://public.ecr.aws/f3l3r6z9/joya_api/
+
+list images
+docker images
+
+tag image
+docker tag <image_id> <repository uri>:<tag> -- example: docker tag 90f8221d8860 public.ecr.aws/f3l3r6z9/joya_api:latest
+
+push image
+docker push <repository uri> -- example: docker push public.ecr.aws/f3l3r6z9/joya_api

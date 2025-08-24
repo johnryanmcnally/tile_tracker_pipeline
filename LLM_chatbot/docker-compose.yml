@@ -1,49 +1,50 @@
 services:
-  # Service for the Ollama large language model server
-  # This service will now only run the Ollama server daemon.
-  ollama:
+  # Ollama hosting servie
+  ollama_server:
+    image: johnryanmcnally/ollama_server:latest
     build:
-      context: . # Build context is the current directory (LLM_chatbot)
+      context: . # set current directory
       dockerfile: Dockerfile_ollama
+      platforms:
+          - linux/arm64
     container_name: ollama_server
     ports:
-      - "11434:11434" # Map port 11434 on the host to 11434 in the container
+      - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama # Persist Ollama model data to a named volume
-    # Directly run 'ollama serve' as the main command for this container.
-    # The entrypoint and previous command that tried to pull models directly are removed.
-    command: ["serve"]
-    healthcheck:
+    command: ["serve"] # run 'ollama serve' as the main command for this container
+    healthcheck: # healthcheck for ollama-init to see if its healthy
       test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
       interval: 10s
-      timeout: 5s # Increased timeout for health check
-      retries: 3 # More retries to allow for server startup
-      start_period: 10s # Sufficient time for the Ollama server to start
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
-      - joya_network # Connect to a custom network for inter-service communication
+      - joya_network # custom network for inter-service communication
 
-  # NEW SERVICE: Initializes Ollama models
-  # This temporary service will pull the necessary models once the 'ollama' server is healthy.
+  # Pulls and initializes Ollama models
   init-ollama:
+    image: johnryanmcnally/ollama_server_init:latest
     build:
-      context: . # Build context is the current directory (LLM_chatbot)
+      context: .
       dockerfile: Dockerfile_ollama
-    container_name: ollama_initializer
+      platforms:
+          - linux/arm64
+    container_name: init-ollama
     networks:
       - joya_network
     depends_on:
-      ollama:
+      ollama_server:
         condition: service_healthy # Ensure Ollama server is running before attempting to pull models
     environment:
-      # Set the OLLAMA_HOST to point to the ollama service
-      - OLLAMA_HOST=http://ollama:11434
-    # Command to pull the necessary models.
-    # We use 'bash -c' to execute multiple commands in sequence.
+      - OLLAMA_HOST=http://ollama_server:11434  # Set the OLLAMA_HOST to point to the ollama service
+    
+    # Command to pull the necessary models - more logic to add delays for ollama server health
     entrypoint: ["bash", "-c"]
     command: >
       "
       echo '--- Waiting for Ollama server to be fully responsive ---';
-      until curl -s http://ollama:11434/api/tags > /dev/null; do
+      until curl -s http://ollama_server:11434/api/tags > /dev/null; do
         echo 'Ollama server not yet responsive, waiting 5 seconds...';
         sleep 5;
       done;
@@ -55,31 +56,28 @@ services:
       echo '--- Ollama models initialized successfully ---';
       "
     
-    # >
-    # "echo '--- Waiting for Ollama server to be fully responsive ---'; until curl -s http://ollama:11434/api/tags > /dev/null; do echo 'Ollama server not yet responsive, waiting 5 seconds...'; sleep 5; done; echo '--- Ollama server is responsive. Pausing for a few seconds before initializing models... ---'; sleep 5; echo '--- Initializing models ---'; ollama pull gemma3:1b || { echo 'ERROR: Failed to pull gemma3:1b model.'; exit 1; }; ollama pull nomic-embed-text || { echo 'ERROR: Failed to pull nomic-embed-text model.'; exit 1; }; echo '--- Ollama models initialized successfully ---';"
-
-  # Service for your FastAPI application
+  # Service for FastAPI application
   joya_api:
+    image: johnryanmcnally/joya_api:latest
     build:
-      context: . # Build context is the current directory (LLM_chatbot)
-      dockerfile: Dockerfile_joya_api # Use the custom Dockerfile for joya_api
-    container_name: joya_fastapi
+      context: .
+      dockerfile: Dockerfile_joya_api
+      platforms:
+          - linux/arm64
+    container_name: joya_api
     ports:
-      - "8000:8000" # Map port 8000 on the host to 8000 in the container
+      - "8000:8000"
     environment:
-      # Set the CHROMA_DB_PATH environment variable for the FastAPI app
-      # This path is relative to the WORKDIR /app inside the container
-      CHROMA_DB_PATH: "./chroma_langchain_db"
+      CHROMA_DB_PATH: "./chroma_langchain_db" # Set the CHROMA_DB_PATH environment variable for the FastAPI app
     depends_on:
-      # Ensure Ollama models are initialized by 'init-ollama' before starting the FastAPI app
       init-ollama:
-        condition: service_completed_successfully # Wait for init-ollama to finish its job
+        condition: service_completed_successfully
     networks:
-      - joya_network # Connect to the same custom network as Ollama
+      - joya_network
 
 # Define named volumes for persistent data
 volumes:
-  ollama_data: # Volume to store Ollama models, ensuring models persist across container restarts
+  ollama_data:
 
 # Define a custom network for the services to communicate with each other
 networks:
