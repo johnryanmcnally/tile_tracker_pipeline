@@ -25,7 +25,7 @@ t3.title(title, anchor='right')
 
 # metric columns
 mt1, mt2, mt3 = st.columns([1,1.75,7])
-period = mt2.number_input(label='Period (Days)', min_value=0, step=1, value=7)
+period = mt2.number_input(label='Period (Days)', min_value=0, step=1, value=30)
 mt3.write(f"<br><br>---------------------------------------------------------------------- Last {period} Days ----------------------------------------------------------------------", unsafe_allow_html=True)
 m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
 
