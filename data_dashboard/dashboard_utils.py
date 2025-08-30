@@ -33,9 +33,9 @@ def get_db_connection():
         st.stop() # Stop the Streamlit app if connection fails
 
 # Function to fetch data health
-def tile_data_health(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def tile_data_health(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     tile_total_count_query = f"""
                 SELECT COUNT(*)
                 FROM tile_data_john;
@@ -54,9 +54,9 @@ def tile_data_health(period):
     
     return tile_total_count, tile_delta_count
 
-def google_data_health(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def google_data_health(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     tag_count_query = f"""
 WITH date_range_counts AS (
     SELECT
@@ -100,9 +100,9 @@ ORDER BY tag_count DESC
     tag_count = pd.read_sql(tag_count_query, con=engine)    
     return tag_count
 
-def get_weather(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def get_weather(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     weather_query = f"""
 SELECT
 	date,
@@ -123,9 +123,9 @@ ORDER BY date DESC
 
 # Function to fetch data
 @st.cache_data
-def fetch_data(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def fetch_data(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     # Select the first row for each cluster label
     clusterquery = f"""
 WITH rank AS (
@@ -213,7 +213,7 @@ def make_dashboard_graphs(period, tag_count, weather):
         tooltip=['tag','delta'],
         color = alt.value('green')    
     ).properties(
-        title=f'Tag Deltas (Last {period} Days)'
+        title=f'Tag Deltas in Dates'
     ).configure_title(
         fontSize=title_font_size,
         # font='serif',
@@ -222,6 +222,7 @@ def make_dashboard_graphs(period, tag_count, weather):
         dy=20
     )
 
+    # Weather
     temperature = alt.Chart(weather[weather['variable']!='precipitation_mm']).mark_line().encode(
         x=alt.X('date:O', axis=alt.Axis(title='Date')),
         y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
@@ -238,7 +239,7 @@ def make_dashboard_graphs(period, tag_count, weather):
     )
 
     weather_chart = (precipitation + temperature).resolve_scale(y='independent').properties(
-        title=f'Weather (Last {period} Days)'
+        title=f'Weather ({period} Days)'
     ).configure_title(
         fontSize=title_font_size,
         # font='serif',

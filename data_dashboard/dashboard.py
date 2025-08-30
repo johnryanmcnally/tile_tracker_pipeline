@@ -22,10 +22,17 @@ t1, t2, t3, t4 = st.columns([.6, .15, 1.25, .6])
 t2.image("data_dashboard/images/tile_logo.png", width = 75)
 t3.title(title, anchor='right')
 
+# date range columns
+dr1, dr2, dr3, dr4 = st.columns([.8,.5,.5,1])
+start_date = dr2.date_input(label="Start Date", value=datetime.date.today() - datetime.timedelta(days=30),
+                            min_value=datetime.date(year=2024, month=11, day=15))
+end_date = dr3.date_input(label="End Date", value = datetime.date.today(),
+                            min_value=datetime.date(year=2024, month=11, day=16))
+period = (end_date - start_date).days
 # metric columns
 mt1, mt2, mt3 = st.columns([1,1.75,7])
-period = mt2.number_input(label='Period (Days)', min_value=0, step=1, value=30)
-mt3.write(f"<br><br>---------------------------------------------------------------------- Last {period} Days ----------------------------------------------------------------------", unsafe_allow_html=True)
+# period = mt2.number_input(label='Period (Days)', min_value=0, step=1, value=30)
+mt3.write(f"|---------------------------------------------------------------------- {period} Days ----------------------------------------------------------------------|", unsafe_allow_html=True)
 m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
 
 # graph columns
@@ -33,14 +40,14 @@ col1, col2, col3, col4, col5 = st.columns([.01, .5, .5, 1.25, .25], gap='medium'
 title_font_size = 15
 
 # Retrieve data based on period
-tile_total_count, tile_delta_count = tile_data_health(period)
-tag_count = google_data_health(period).head(10)
+tile_total_count, tile_delta_count = tile_data_health(start_date, end_date)
+tag_count = google_data_health(start_date, end_date).head(10)
 tag_count['prev_value'] = tag_count['tag_count'] - tag_count['delta']
-weather = get_weather(period)
+weather = get_weather(start_date, end_date)
 
 # Arrange Data on dashboard
 # Tile Data
-m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in last {period} days', border=True) # , delta_color='inverse'
+m2.metric(label='**Total Record Count**', value=tile_total_count, delta=f'{tile_delta_count} in date range', border=True) # , delta_color='inverse'
 m3.metric(label=f'**Most Visited Tag**', value=tag_count['tag'].values[0], border=True)
 m4.metric(label='**Average Temperature**', value = f"{weather['temperature_f'].mean():.1f} F", border=True)
 m5.metric(label='**Average RH**', value = f"{weather['rh'].mean():.1f}%", border=True)
@@ -59,7 +66,7 @@ col4.altair_chart(weather_chart.properties(height=300, width=600, padding={'bott
 # Make Map
 slider1, slider2, slider3 = st.columns([1,.85,1])
 slider2.subheader('Interactive Map w/ Histograms', anchor='middle')
-mapdata = fetch_data(period)
+mapdata = fetch_data(start_date, end_date)
 df = mapdata[['longitude','latitude']].copy().rename(columns={'latitude':'Latitude','longitude':'Longitude'})
 
 # Native Altair slider was causing rendering issues - streamlit slider has significantly slower performance... but it works
