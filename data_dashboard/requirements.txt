@@ -18,7 +18,7 @@ streamlit==1.45.1
 uv==0.7.19
 vega-datasets==0.9.0
 langchain==0.3.27
-langchain-chroma==0.2.5
+langchain-chroma==0.2.3
 langchain-core==0.3.75
 langchain-google-genai==2.1.10
 langchain-ollama==0.3.6
