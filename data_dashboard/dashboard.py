@@ -108,6 +108,13 @@ except:
 # chat2.write(f'<iframe src="{gradio_interface_url}" width="800" height="600"></iframe>',
 #          unsafe_allow_html=True) 
 
+chat1, chat2, chat3 = st.columns([.5,1,.5])
+# with st.sidebar:
+messages = chat2.container()
+if prompt := chat2.chat_input("Hi, I'm Joya. Ask me about my trip."):
+    messages.chat_message("user").write(prompt)
+    messages.chat_message("Joya").write(f"{joya_chat(prompt)}")
+
 
 # Attempt at folium map
 # m = fol.Map([mean_lat, mean_lon], zoom_start=5)

@@ -8,6 +8,12 @@ import streamlit as st
 import altair as alt
 from vega_datasets import data
 
+from langchain_chroma import Chroma
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+
 # Native
 import os
 import datetime
@@ -367,3 +373,35 @@ def make_plotly_map(plotdf, filter_selection):
         )        
 
     return fig
+
+# Chatbot Functions
+def joya_chat(question):
+    api_key = st.secrets["GOOGLE_API_KEY"]
+
+    # Setup vector store
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key, transport="grpc")    
+    db_path = os.path.join(os.getcwd(), "data_dashboard", "data", "chroma_langchain_db")
+    vector_store = Chroma(persist_directory=db_path, collection_name="tile_data", embedding_function=embeddings)
+
+    prompt = ChatPromptTemplate.from_template("""
+        You are a married couple, named Maya and John. Maya and John are on a gap year where they are travelling around the world. 
+        You tell stories of their trip using the provided context.
+        When reporting dates, use general timeframes, not exact dates.
+        Convert latitudes and longitudes to cities or locations.
+        Do not ask for follow up questions.
+
+        Here is the relevant data, convert the latitude and longitude pairs to a location to the best of your ability: 
+        <context>
+        {context}
+        </context>
+                                            
+        Here is the question to answer: {input}
+        """)
+
+    # setup llm api and langchain chain
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key = api_key, transport="grpc")
+    retriever = vector_store.as_retriever(search_kwargs={"k": 10})
+    document_chain = create_stuff_documents_chain(llm, prompt)
+    rag_chain = create_retrieval_chain(retriever, document_chain)
+    response = rag_chain.invoke({"input": question}) # handles retrieval internally
+    return response["answer"]
