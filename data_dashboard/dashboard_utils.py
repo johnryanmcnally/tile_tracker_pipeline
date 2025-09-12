@@ -17,7 +17,7 @@ from langchain_core.prompts import ChatPromptTemplate
 # Native
 import os
 import datetime
-import sqlite3
+# import sqlite3
 __import__('pysqlite3') 
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
