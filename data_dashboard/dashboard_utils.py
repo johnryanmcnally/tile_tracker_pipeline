@@ -1,3 +1,11 @@
+# Native
+import os
+import datetime
+# import sqlite3
+__import__('pysqlite3') 
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+
 # Third Party
 import pandas as pd
 import plotly.graph_objects as go
@@ -14,13 +22,6 @@ from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 
-# Native
-import os
-import datetime
-# import sqlite3
-__import__('pysqlite3') 
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 def get_sqlite_connection():
     conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
