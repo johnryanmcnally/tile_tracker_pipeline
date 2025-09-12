@@ -1,9 +1,9 @@
 # Native
 import os
 import datetime
-# __import__('pysqlite3') 
-# import sys
-# sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+__import__('pysqlite3') 
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 import sqlite3
 
 # Third Party
@@ -384,7 +384,7 @@ def joya_chat(question):
 
     # Setup vector store
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key, transport="grpc")    
-    db_path = os.path.join(os.getcwd(), "data_dashboard", "data", "chroma_langchain_db")
+    db_path = os.path.join(os.getcwd(), "data_dashboard", "data", "chromadb")
     vector_store = Chroma(persist_directory=db_path, collection_name="tile_data", embedding_function=embeddings)
 
     prompt = ChatPromptTemplate.from_template("""
