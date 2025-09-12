@@ -18,6 +18,9 @@ from langchain_core.prompts import ChatPromptTemplate
 import os
 import datetime
 import sqlite3
+__import__('pysqlite3') 
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
 
 def get_sqlite_connection():
     conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
