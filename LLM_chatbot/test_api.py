@@ -14,6 +14,10 @@ import json
 url = "http://localhost:8000/prompt"
 question = 'tell me about Vietnam'
 
+# Test AWS
+# url = "https://52.15.172.17"
+# question = 'tell me about Vietnam'
+
 params = {'question':question}
 response = requests.get(url=url, params=params)
 print(response)

@@ -22,11 +22,14 @@ chain = prompt | model
 
 
 while True:
+    # user question
     question = input("Hi, I'm Joya. Ask me about my travels. (q to quit)\nQuestion: ")
     if question == 'q':
         break
     print("\n\nRetreiving data to answer your question...")
+    # retrieve data based on similarity
     locations = retriever.invoke(question)
+    # pass question and relevant data to model
     result = chain.invoke({"locations":locations, "question":question})
     print("\n ----- Answer ----- \n")
     print(result)

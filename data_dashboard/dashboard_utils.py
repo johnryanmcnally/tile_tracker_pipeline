@@ -1,3 +1,22 @@
+# Native
+import os
+import datetime
+# the webapp is in a delicate state right now
+# the sqlite version that streamlit uses is different than
+# this pc, since it runs with linux, even though its
+# the same python version. The mismatched sqlite3 version
+# means chroma cannot read the vector store, so need to
+# create the vector store on Google Colab, download,
+# then push to github
+
+# to run the RAG, need to have these lines below, but this
+# is how it needs to run on streamlit
+# to run locally, only run sqlite3 line
+__import__('pysqlite3') 
+import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import sqlite3
+
 # Third Party
 import pandas as pd
 import plotly.graph_objects as go

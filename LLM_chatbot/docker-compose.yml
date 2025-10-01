@@ -1,18 +1,22 @@
 services:
   # Ollama hosting servie
-  ollama_server:
-    image: johnryanmcnally/ollama_server:latest
+  ollama:
+    image: ollama/ollama:latest
     build:
       context: . # set current directory
       dockerfile: Dockerfile_ollama
-      platforms:
-          - linux/arm64
-    container_name: ollama_server
+      # platforms:
+      #   - linux/arm64
+    container_name: ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama # Persist Ollama model data to a named volume
+    # ** existing **
     command: ["serve"] # run 'ollama serve' as the main command for this container
+    # ** attempt to serve and pull **
+    # entrypoint: ["ollama", "serve"]
+    
     healthcheck: # healthcheck for ollama-init to see if its healthy
       test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
       interval: 10s
@@ -22,56 +26,41 @@ services:
     networks:
       - joya_network # custom network for inter-service communication
 
-  # Pulls and initializes Ollama models
-  init-ollama:
-    image: johnryanmcnally/ollama_server_init:latest
-    build:
-      context: .
-      dockerfile: Dockerfile_ollama
-      platforms:
-          - linux/arm64
-    container_name: init-ollama
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama_puller
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: [ "sh", "-c"]
+    command:
+      ["ollama pull gemma3:1b && ollama pull nomic-embed-text"]
+    depends_on:
+      ollama:
+        condition: service_healthy # Wait for Ollama to be ready to accept commands
     networks:
       - joya_network
-    depends_on:
-      ollama_server:
-        condition: service_healthy # Ensure Ollama server is running before attempting to pull models
-    environment:
-      - OLLAMA_HOST=http://ollama_server:11434  # Set the OLLAMA_HOST to point to the ollama service
-    
-    # Command to pull the necessary models - more logic to add delays for ollama server health
-    entrypoint: ["bash", "-c"]
-    command: >
-      "
-      echo '--- Waiting for Ollama server to be fully responsive ---';
-      until curl -s http://ollama_server:11434/api/tags > /dev/null; do
-        echo 'Ollama server not yet responsive, waiting 5 seconds...';
-        sleep 5;
-      done;
-      echo '--- Ollama server is responsive. Pausing for a few seconds before initializing models... ---';
-      sleep 5;
-      echo '--- Initializing models ---';
-      ollama pull gemma3:1b || { echo 'ERROR: Failed to pull gemma3:1b model.'; exit 1; };
-      ollama pull nomic-embed-text || { echo 'ERROR: Failed to pull nomic-embed-text model.'; exit 1; };
-      echo '--- Ollama models initialized successfully ---';
-      "
-    
+
   # Service for FastAPI application
   joya_api:
     image: johnryanmcnally/joya_api:latest
     build:
       context: .
       dockerfile: Dockerfile_joya_api
-      platforms:
-          - linux/arm64
+      # platforms:
+      #   - linux/arm64
+      #   - linux/X86_64
     container_name: joya_api
     ports:
       - "8000:8000"
     environment:
       CHROMA_DB_PATH: "./chroma_langchain_db" # Set the CHROMA_DB_PATH environment variable for the FastAPI app
     depends_on:
-      init-ollama:
-        condition: service_completed_successfully
+      ollama-pull:
+        condition: service_completed_successfully # Start API only after models are pulled
+      ollama:
+        condition: service_healthy
     networks:
       - joya_network
 

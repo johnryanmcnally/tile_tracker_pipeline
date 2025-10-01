@@ -8,11 +8,11 @@ WORKDIR /app
 # RUN apt-get update && apt-get install -y curl
 
 # Install system dependencies needed for sqlite
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     sqlite3 \
+#     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential
+# RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 # copy files
 COPY joya_api/api_requirements.txt .
 
