@@ -1,17 +1,6 @@
 # Native
 import os
 import datetime
-# the webapp is in a delicate state right now
-# the sqlite version that streamlit uses is different than
-# this pc, since it runs with linux, even though its
-# the same python version. The mismatched sqlite3 version
-# means chroma cannot read the vector store, so need to
-# create the vector store on Google Colab, download,
-# then push to github
-
-# to run the RAG, need to have these lines below, but this
-# is how it needs to run on streamlit
-# to run locally, only run sqlite3 line
 __import__('pysqlite3') 
 import sys
 sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
@@ -27,17 +16,17 @@ import streamlit as st
 import altair as alt
 from vega_datasets import data
 
-# Native
-import os
-import datetime
-import sqlite3
+from langchain_chroma import Chroma
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
 
-# get sqlite connection for dashboard
+
 def get_sqlite_connection():
     conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
     return conn
 
-# ** OBSOLETE ** - moved to sqlite for cloud storage
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun
 def get_db_connection():
     load_dotenv() # take environment variables from .env.
@@ -53,10 +42,10 @@ def get_db_connection():
         st.error(f"Error connecting to the database: {e}")
         st.stop() # Stop the Streamlit app if connection fails
 
-# Function to data from tile_data_john (Tile Tracker data)
-def tile_data_health(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+# Function to fetch data health
+def tile_data_health(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     tile_total_count_query = f"""
                 SELECT COUNT(*)
                 FROM tile_data_john;
@@ -69,17 +58,15 @@ def tile_data_health(period):
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
+    # raw = pd.read_sql(rawquery, con=engine)
     tile_total_count = pd.read_sql(tile_total_count_query, con=engine).values[0,0]
     tile_delta_count = pd.read_sql(tile_delta_count_query, con=engine).values[0,0]
     
     return tile_total_count, tile_delta_count
 
-# Fuction to fetch data from GoogleMaps Places API
-def google_data_health(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
-
-    # this query counts the total occurence of tags and adds the delta within the date range
+def google_data_health(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     tag_count_query = f"""
 WITH date_range_counts AS (
     SELECT
@@ -119,18 +106,17 @@ ORDER BY tag_count DESC
 
     # engine = get_db_connection()
     engine = get_sqlite_connection()
+    # raw = pd.read_sql(rawquery, con=engine)
     tag_count = pd.read_sql(tag_count_query, con=engine)    
     return tag_count
 
-
-# Function to fetch OpenMeteo weather data
-def get_weather(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def get_weather(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     weather_query = f"""
 SELECT
 	date,
-	AVG(temperature_2m * 5/9 + 32) as temperature_f,
+	AVG(temperature_2m * 9/5 + 32) as temperature_f,
 	AVG(relative_humidity_2m) as rh,
 	AVG(precipitation) as precipitation_mm
 FROM weather
@@ -147,9 +133,9 @@ ORDER BY date DESC
 
 # Function to fetch data
 @st.cache_data
-def fetch_data(period):
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=period)
+def fetch_data(start, end):
+    # end = datetime.date.today()
+    # start = end - datetime.timedelta(days=period)
     # Select the first row for each cluster label
     clusterquery = f"""
 WITH rank AS (
@@ -237,7 +223,7 @@ def make_dashboard_graphs(period, tag_count, weather):
         tooltip=['tag','delta'],
         color = alt.value('green')    
     ).properties(
-        title=f'Tag Deltas (Last {period} Days)'
+        title=f'Tag Deltas in Dates'
     ).configure_title(
         fontSize=title_font_size,
         # font='serif',
@@ -246,23 +232,24 @@ def make_dashboard_graphs(period, tag_count, weather):
         dy=20
     )
 
+    # Weather
     temperature = alt.Chart(weather[weather['variable']!='precipitation_mm']).mark_line().encode(
         x=alt.X('date:O', axis=alt.Axis(title='Date')),
         y = alt.Y('value', axis=alt.Axis(title='Temperature (F), RH (%)')),
         color=alt.Color('variable', scale=alt.Scale(domain=['temperature_f', 'rh', 'precipitation'],
                                                     range=['orange', 'lightblue', 'grey'])).legend(orient='top', title=None),
-        tooltip = []
+        tooltip = ['date','value','variable']
     )
 
     precipitation = alt.Chart(weather[weather['variable']=='precipitation_mm']).mark_bar().encode(
         x=alt.X('date:O'),
         y = alt.Y('value', axis=alt.Axis(title='Precipitation (mm)')),
         color= alt.value('grey'),
-        tooltip=[]
+        tooltip=['date','value','variable']
     )
 
     weather_chart = (precipitation + temperature).resolve_scale(y='independent').properties(
-        title=f'Weather (Last {period} Days)'
+        title=f'Weather ({period} Days)'
     ).configure_title(
         fontSize=title_font_size,
         # font='serif',
@@ -299,7 +286,7 @@ def make_altair_map(df, rotate_value):
 
 @st.cache_data
 def make_lat_lon_hist(df, rotate_value):
-    latitude_hist = alt.Chart(df).mark_bar(height=5).transform_filter(
+    latitude_hist = alt.Chart(df).mark_bar(height=6).transform_filter(
             (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
         ).encode(
         y=alt.Y("Latitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-90,90]), axis=alt.Axis(grid=False, title=None, labels=False)),
@@ -309,7 +296,7 @@ def make_lat_lon_hist(df, rotate_value):
         width=100
     )
 
-    longitude_hist = alt.Chart(df).mark_bar(width=5).transform_filter(
+    longitude_hist = alt.Chart(df).mark_bar(width=6).transform_filter(
             (rotate_value * -1 - 90 < alt.datum.Longitude) & (alt.datum.Longitude < rotate_value * -1 + 90)
         ).encode(
         x=alt.X("Longitude:Q", bin=alt.Bin(nice=True,step=5), scale=alt.Scale(domain=[-1*rotate_value-90,-1*rotate_value+90]), axis=alt.Axis(grid=False, title=None, labels=False)),
@@ -390,3 +377,35 @@ def make_plotly_map(plotdf, filter_selection):
         )        
 
     return fig
+
+# Chatbot Functions
+def joya_chat(question):
+    api_key = st.secrets["GOOGLE_API_KEY"]
+
+    # Setup vector store
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key, transport="grpc")    
+    db_path = os.path.join(os.getcwd(), "data_dashboard", "data", "chromadb")
+    vector_store = Chroma(persist_directory=db_path, collection_name="tile_data", embedding_function=embeddings)
+
+    prompt = ChatPromptTemplate.from_template("""
+        You are a married couple, named Maya and John. Maya and John are on a gap year where they are travelling around the world. 
+        You tell stories of their trip using the provided context.
+        When reporting dates, use general timeframes, not exact dates.
+        Convert latitudes and longitudes to cities or locations.
+        Do not ask for follow up questions.
+
+        Here is the relevant data, convert the latitude and longitude pairs to a location to the best of your ability: 
+        <context>
+        {context}
+        </context>
+                                            
+        Here is the question to answer: {input}
+        """)
+
+    # setup llm api and langchain chain
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key = api_key, transport="grpc")
+    retriever = vector_store.as_retriever(search_kwargs={"k": 10})
+    document_chain = create_stuff_documents_chain(llm, prompt)
+    rag_chain = create_retrieval_chain(retriever, document_chain)
+    response = rag_chain.invoke({"input": question}) # handles retrieval internally
+    return response["answer"]
