@@ -24,7 +24,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 
 def get_sqlite_connection():
-    conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
+    conn = sqlite3.connect("data/dashboard_data.sqlite")
     return conn
 
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun
@@ -384,7 +384,7 @@ def joya_chat(question):
 
     # Setup vector store
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key, transport="grpc")    
-    db_path = os.path.join(os.getcwd(), "data_dashboard", "data", "chromadb")
+    db_path = os.path.join(os.getcwd(), "data", "chromadb")
     vector_store = Chroma(persist_directory=db_path, collection_name="tile_data", embedding_function=embeddings)
 
     prompt = ChatPromptTemplate.from_template("""
@@ -403,7 +403,7 @@ def joya_chat(question):
         """)
 
     # setup llm api and langchain chain
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key = api_key, transport="grpc")
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key = api_key, transport="grpc")
     retriever = vector_store.as_retriever(search_kwargs={"k": 10})
     document_chain = create_stuff_documents_chain(llm, prompt)
     rag_chain = create_retrieval_chain(retriever, document_chain)

@@ -14,12 +14,12 @@ import datetime
 # Custom
 from dashboard_utils import * 
 
-st.set_page_config(layout="wide", page_title="Tile Dashboard", page_icon="data_dashboard/images/tile_logo.png")
+st.set_page_config(layout="wide", page_title="Tile Dashboard", page_icon="images/tile_logo.png")
 title = '**Location Tracker Dashboard**'
 
 # title columns
 t1, t2, t3, t4 = st.columns([.6, .15, 1.25, .6])
-t2.image("data_dashboard/images/tile_logo.png", width = 75)
+t2.image("images/tile_logo.png", width = 75)
 t3.title(title, anchor='right')
 
 # date range columns
