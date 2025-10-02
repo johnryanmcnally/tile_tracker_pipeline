@@ -8,6 +8,10 @@ from anyascii import anyascii
 # Native
 import time
 import os
+import concurrent.futures
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 """
 In order to use this script the Google Cloud SDK Shell needs to be running
@@ -107,6 +111,63 @@ class Geocoder():
             time.sleep(.02) # to stay under the 3000 requests per minute ~ .02 sec per request
 
         return self.geocode_results
+
+    # def _geocode_single(self, cluster_label, df):
+    #     """Helper function to perform a single reverse geocode request."""
+    #     # reverse geocode the mean lat and lon of the cluster
+    #     lat, lon = df[df['cluster_label'] == cluster_label][['latitude','longitude']].mean().values
+    #     # Removed time.sleep(.02) to allow concurrent execution
+    #     return str(cluster_label), self.client.reverse_geocode((lat, lon))
+
+    # # Request reverse geocoding from google api
+    # def geocode_clusters(self, df: pd.DataFrame) -> dict:
+    #     """
+    #     Request reverse geocoding from GoogleMaps API concurrently using ThreadPoolExecutor.
+
+    #     Parameters
+    #     -----------
+    #     df : pandas DataFrame
+    #         contains columns ['cluster_label','latitude','longitude']
+
+    #     Returns
+    #     -----------
+    #     geocode_results : dict
+    #         dictionary containing {cluster_label: api_response}
+    #     """
+    #     self.df = df
+    #     cluster_labels = list(df['cluster_label'].unique())
+    #     total_len = len(cluster_labels)
+    #     self.geocode_results = {}
+        
+    #     # Use a ThreadPoolExecutor for I/O-bound concurrency
+    #     MAX_WORKERS = 5 # A reasonable starting concurrency level for network requests
+    #     print(f"Starting concurrent geocoding with {MAX_WORKERS} threads.")
+    #     logger.info("Starting concurrent geocoding with {MAX_WORKERS} threads.")
+
+    #     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    #         # Submits tasks and stores them in a dict for tracking completion
+    #         future_to_label = {
+    #             executor.submit(self._geocode_single, label, df): label
+    #             for label in cluster_labels
+    #         }
+
+    #         for i, future in enumerate(concurrent.futures.as_completed(future_to_label)):
+    #             if (i % 50 == 0) and (i != 0): # Print progress
+    #                 print(f"{100*(i/total_len):.1f}% Complete")
+    #                 logger.info(f"{100*(i/total_len):.1f}% Complete")
+                
+    #             try:
+    #                 cluster_label, result = future.result()
+    #                 self.geocode_results[cluster_label] = result
+    #             except Exception as exc:
+    #                 label = future_to_label[future]
+    #                 print(f'Cluster {label} generated an exception: {exc}')
+    #                 logger.error(f"Cluster {label} generated an exception: {exc}")
+        #             # Consider adding retry logic here for specific exceptions (like API rate limit errors)
+
+        # print("100.0% Complete")
+        # logger.info(f"100.0% Complete")
+        # return self.geocode_results
 
     
     def process_geocode(self):

@@ -11,7 +11,7 @@ from data_utils.weather_api import Weather_API
 TEMPPATH = '/opt/data/temp/'
 
 if __name__ == '__main__':
-    testing = False
+    testing = True
 
     if testing:
         # Load Data

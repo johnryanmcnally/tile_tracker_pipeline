@@ -4,6 +4,9 @@ import pandas as pd
 # Native Imports
 import time
 import json
+import logging
+logging.basicConfig(level=logging.INFO) # makes the logs appear in Airflow
+logger = logging.getLogger(__name__)
 
 # Custom Imports
 from data_utils.geocoder import Geocoder
@@ -19,11 +22,14 @@ if __name__ == '__main__':
     # *** Must have Google Cloud SDK Shell running and authenticated ***
     geocoder = Geocoder()
     geocoder.check_state()
-    print(f"Requestion reverse geocoding from GoogleMaps API...")
+    print(f"Requesting reverse geocoding from GoogleMaps API...")
+    logger.info("Requesting reverse geocoding from GoogleMaps API...")
     start = time.time()
     geocode_results = geocoder.geocode_clusters(df[['cluster_label','latitude','longitude']])
     print("Done.")
-    print(f"Took {time.time() - start:.3f} seconds") 
+    logger.info(f"Done.")
+    print(f"Took {time.time() - start:.3f} seconds")
+    logger.info(f"Took {time.time() - start:.3f} seconds")
 
     # Save Result immediately so we dont have to do it again
     with open(TEMPPATH + 'geocode_results.json','w+') as f:
@@ -31,9 +37,11 @@ if __name__ == '__main__':
     print(f"Successfully saved geocoding data: 'geocode_results.json'")
 
     print("Processing geocode results...")
+    logger.info(f"Processing geocode results...")
     start = time.time()
     df_tags, df_place_ids, df_addresses, df_cluster_address, norm_cluster_map = geocoder.process_geocode()
     print(f"Took {time.time() - start:.3f} seconds")
+    logger.info(f"Took {time.time() - start:.3f} seconds")
 
     # Save processed geocode data
     df_tags.to_parquet(TEMPPATH + 'tags.parquet')

@@ -28,16 +28,41 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str):
         dataframe containing the combined data
     """
     all_location_updates = []
-    files = Path(datapath).glob('*.json')
+    files = [file for file in Path(datapath).glob('*.json')]
+    print(files)
 
     for file in files:
-        with open(file, 'r') as f:
-            data = json.load(f)
-            # Safely access nested data, handle potential missing keys if your JSONs vary
-            if tile_uuid in data and 'result' in data[tile_uuid] and \
-               'location_updates' in data[tile_uuid]['result']:
-                all_location_updates.extend(data[tile_uuid]['result']['location_updates'])
+        try:
+            # Try a standard open without explicit encoding first, 
+            # or try your best guess (e.g., 'utf-8').
+            with open(file, 'r', encoding='utf-8') as f: 
+                # Check if the file handle is valid and readable
+                if f.readable():
+                    print(f"Attempting to load data from: {file}")
+                    # CRITICAL: Use a print statement that will execute 
+                    # before the potentially failing load operation
+                    
+                    data = json.load(f)
+                    print("Data loaded successfully.")
+                    # print(data) # This should now print
+                    
+                    # Safely access nested data...
+                    if tile_uuid in data and 'result' in data[tile_uuid] and \
+                       'location_updates' in data[tile_uuid]['result']:
+                        all_location_updates.extend(data[tile_uuid]['result']['location_updates'])
+                else:
+                    print(f"ERROR: File handle for {file} is not readable.")
 
+        except FileNotFoundError:
+            print(f"ERROR: File not found: {file}")
+        except PermissionError:
+            print(f"CRITICAL ERROR: Permission denied for file: {file}") # <-- MOST LIKELY PROBLEM
+        except json.JSONDecodeError as e:
+            print(f"ERROR: JSON decoding failed for {file}: {e}")
+        except Exception as e:
+            print(f"An unexpected error occurred with file {file}: {e}")
+
+    
     if not all_location_updates:
         return pd.DataFrame() # Return empty DataFrame if no data found
 
