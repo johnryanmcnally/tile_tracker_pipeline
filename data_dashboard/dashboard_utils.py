@@ -382,29 +382,28 @@ def make_plotly_map(plotdf, filter_selection):
 def joya_chat(question):
     api_key = st.secrets["GOOGLE_API_KEY"]
 
-    # Setup vector store
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key, transport="grpc")    
-    db_path = os.path.join(os.getcwd(), "data", "chromadb")
+    # Setup vector store  
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key, transport="grpc")    
+    db_path = "./data_dashboard/data/chroma_db"
     vector_store = Chroma(persist_directory=db_path, collection_name="tile_data", embedding_function=embeddings)
 
     prompt = ChatPromptTemplate.from_template("""
-        You are a married couple, named Maya and John. Maya and John are on a gap year where they are travelling around the world. 
-        You tell stories of their trip using the provided context.
-        When reporting dates, use general timeframes, not exact dates.
-        Convert latitudes and longitudes to cities or locations.
-        Do not ask for follow up questions.
+    You are Joya: a persona of the married couple John and Maya.
+    You are on a gap year to travel around the world. 
+    You tell stories of their trip using the provided context.
+    Do not ask for follow up questions.
 
-        Here is the relevant data, convert the latitude and longitude pairs to a location to the best of your ability: 
-        <context>
-        {context}
-        </context>
-                                            
-        Here is the question to answer: {input}
-        """)
+    Here are the relevant journal entries: 
+    <context>
+    {context}
+    </context>
+                                        
+    Here is the question to answer: {input}
+    """)
 
     # setup llm api and langchain chain
     llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key = api_key, transport="grpc")
-    retriever = vector_store.as_retriever(search_kwargs={"k": 10})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 20} )
     document_chain = create_stuff_documents_chain(llm, prompt)
     rag_chain = create_retrieval_chain(retriever, document_chain)
     response = rag_chain.invoke({"input": question}) # handles retrieval internally
