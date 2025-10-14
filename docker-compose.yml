@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 services:
   tileproject:
     image: tileproject:latest
@@ -19,3 +20,26 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+=======
+services:
+  tileproject:
+    image: tileproject:latest
+
+    user: root
+
+    volumes:
+      - ./airflow:/opt/airflow
+      - ./data_handling:/opt/data_handling
+      - ./data:/opt/data
+      - ./data_dashboard:/opt/data_dashboard
+
+    ports:
+      - "8080:8080"
+
+    command: airflow standalone
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+>>>>>>> 4d5161181fe1f404ac675d9ea1e3b6b182a997c7
