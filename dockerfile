@@ -5,7 +5,7 @@ RUN apt-get update && \
     apt-get -y install git && \
     apt-get clean
 
-USER airflow
+# USER airflow
 COPY requirements.txt /requirements.txt
 COPY .env /.env
 RUN pip install uv

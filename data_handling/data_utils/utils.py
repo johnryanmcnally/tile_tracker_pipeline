@@ -2,14 +2,69 @@
 import pandas as pd
 import numpy as np
 from sklearn.cluster import HDBSCAN
+from sqlalchemy import create_engine
+import sqlalchemy
+import uuid
+from dotenv import load_dotenv
 
 # Native Imports
 from pathlib import Path
 import json
+import os
+import re
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def postgres_connection():
+    load_dotenv() # take environment variables from .env.
+    db_user = os.getenv("POSTGRESQL_USERNAME")
+    db_password = os.getenv("POSTGRESQL_PWD")
+    db_host = 'host.docker.internal'
+    # if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
+    #     # Running inside an Airflow task
+    #     db_host = 'localhost'
+    # else:
+    #     # Running locally or outside Airflow
+    #     db_host = 'host.docker.internal' # for running in devcontainer
+    db_port = '5432'
+    db_name = 'tile_db'
+
+    # Create the SQLAlchemy engine
+    engine = create_engine(f'postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
+    return engine
+
+def get_db_info():
+    # PostgreSQL credentials and database details
+    
+    engine = postgres_connection()
+    query = f"""
+SELECT
+	MAX(date) as date,
+	MAX(location_timestamp) as timestamp
+FROM
+	tile_data_john
+;
+"""
+    most_recent_date, most_recent_timestamp = pd.read_sql(query, con=engine)[['date','timestamp']].values[0]
+    # most_recent_timestamp = 0
+    query = f"""
+SELECT
+	DISTINCT cluster_label
+FROM
+	tile_data_john
+ORDER BY cluster_label
+;
+"""
+    cluster_labels = list(pd.read_sql(query, con=engine)['cluster_label'])
+
+    return most_recent_date, most_recent_timestamp, cluster_labels
 
 # caching doesn't help here because we are not calling the function repeatedly with the same arguments
 # @lru_cache(maxsize=None)
-def combine_data(datapath: str, tile_uuid: str, tile_name: str):
+def combine_data(datapath: str, tile_uuid: str, tile_name: str,
+                most_recent_date: str, most_recent_timestamp: str):
     """
     Function to combine all data from the raw jsons to a dataframe, optimized for speed.
 
@@ -21,6 +76,8 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str):
         unique ID for the tile
     tile_name : string
         human readable name of the tile
+    most_recent_date : string
+        last entry date from PostgreSQL database
 
     Returns
     ----------
@@ -29,38 +86,39 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str):
     """
     all_location_updates = []
     files = [file for file in Path(datapath).glob('*.json')]
-    print(files)
 
     for file in files:
         try:
-            # Try a standard open without explicit encoding first, 
-            # or try your best guess (e.g., 'utf-8').
-            with open(file, 'r', encoding='utf-8') as f: 
-                # Check if the file handle is valid and readable
-                if f.readable():
-                    print(f"Attempting to load data from: {file}")
-                    # CRITICAL: Use a print statement that will execute 
-                    # before the potentially failing load operation
-                    
-                    data = json.load(f)
-                    print("Data loaded successfully.")
-                    # print(data) # This should now print
-                    
-                    # Safely access nested data...
-                    if tile_uuid in data and 'result' in data[tile_uuid] and \
-                       'location_updates' in data[tile_uuid]['result']:
-                        all_location_updates.extend(data[tile_uuid]['result']['location_updates'])
-                else:
-                    print(f"ERROR: File handle for {file} is not readable.")
+            date = re.search(r"\d{4}-\d{2}-\d{2}", file.name)[0]
+            if date > most_recent_date:
+                # Try a standard open without explicit encoding first, 
+                # or try your best guess (e.g., 'utf-8').
+                with open(file, 'r', encoding='utf-8') as f: 
+                    # Check if the file handle is valid and readable
+                    if f.readable():
+                        logger.info(f"Attempting to load data from: {file}")
+                        # CRITICAL: Use a print statement that will execute 
+                        # before the potentially failing load operation
+                        
+                        data = json.load(f)
+                        logger.info("Data loaded successfully.")
+                        # print(data) # This should now print
+                        
+                        # Safely access nested data...
+                        if tile_uuid in data and 'result' in data[tile_uuid] and \
+                        'location_updates' in data[tile_uuid]['result']:
+                            all_location_updates.extend(data[tile_uuid]['result']['location_updates'])
+                    else:
+                        logger.error(f"ERROR: File handle for {file} is not readable.")
 
         except FileNotFoundError:
-            print(f"ERROR: File not found: {file}")
+            logger.error(f"ERROR: File not found: {file}")
         except PermissionError:
-            print(f"CRITICAL ERROR: Permission denied for file: {file}") # <-- MOST LIKELY PROBLEM
+            logger.error(f"CRITICAL ERROR: Permission denied for file: {file}") # <-- MOST LIKELY PROBLEM
         except json.JSONDecodeError as e:
-            print(f"ERROR: JSON decoding failed for {file}: {e}")
+            logger.error(f"ERROR: JSON decoding failed for {file}: {e}")
         except Exception as e:
-            print(f"An unexpected error occurred with file {file}: {e}")
+            logger.error(f"An unexpected error occurred with file {file}: {e}")
 
     
     if not all_location_updates:
@@ -72,6 +130,9 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str):
     df['datetime'] = pd.to_datetime(df['location_timestamp'], unit='ms', utc=True)
     df['date'] = df['datetime'].dt.date
     df['time'] = df['datetime'].dt.strftime("%H:%M:%S")
+
+    # ensure new data
+    df = df[df['location_timestamp'] > most_recent_timestamp]
 
     # Add tile_name column
     df['tile_name'] = tile_name

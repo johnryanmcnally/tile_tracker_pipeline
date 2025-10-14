@@ -1,8 +1,8 @@
-version: '3'
-
 services:
   tileproject:
     image: tileproject:latest
+
+    user: root
 
     volumes:
       - ./airflow:/opt/airflow
