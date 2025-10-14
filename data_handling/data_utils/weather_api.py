@@ -7,11 +7,14 @@ from retry_requests import retry
 
 # Native
 import time
+import logging
+logging.basicConfig(level=logging.INFO) # makes the logs appear in Airflow
+logger = logging.getLogger(__name__)
 
 
 class Weather_API():
     
-    def __init__(self, weather_df: pd.DataFrame = None):
+    def __init__(self, weather_df: pd.DataFrame = None, cache = {'':[]}):
         self.cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
         self.retry_session = retry(self.cache_session, retries = 5, backoff_factor = 0.2)
         self.openmeteo = openmeteo_requests.Client(session = self.retry_session)
@@ -39,11 +42,11 @@ class Weather_API():
         # make dataframe for just dates
         day_df = df[['date','latitude','longitude']].groupby('date').mean().reset_index()
         total_len = day_df['date'].nunique()
-        print(f"Requesting data for {total_len} days")
+        logger.info(f"Requesting data for {total_len} days")
         hourly_df = [] # list to collect hourly dataframes
         for i, row in day_df.iterrows(): # not too inefficient since there are only like 200 days
             if i%10 == 0:
-                print(f"{100*(i/total_len):.1f}% Complete")
+                logger.info(f"{100*(i/total_len):.1f}% Complete")
             date, lat, lon = row.values
             params = {
                 "latitude": lat,

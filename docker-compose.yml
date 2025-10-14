@@ -1,15 +1,21 @@
-version: '3'
-
 services:
   tileproject:
     image: tileproject:latest
+
+    user: root
 
     volumes:
       - ./airflow:/opt/airflow
       - ./data_handling:/opt/data_handling
       - ./data:/opt/data
+      - ./data_dashboard:/opt/data_dashboard
 
     ports:
       - "8080:8080"
 
     command: airflow standalone
+
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536

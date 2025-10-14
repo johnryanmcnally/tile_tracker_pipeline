@@ -24,7 +24,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 
 def get_sqlite_connection():
-    conn = sqlite3.connect("data/dashboard_data.sqlite")
+    conn = sqlite3.connect("data_dashboard/data/dashboard_data.sqlite")
     return conn
 
 @st.cache_resource # Cache the connection object to avoid re-establishing on every rerun

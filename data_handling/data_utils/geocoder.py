@@ -8,6 +8,10 @@ from anyascii import anyascii
 # Native
 import time
 import os
+import concurrent.futures
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 """
 In order to use this script the Google Cloud SDK Shell needs to be running
@@ -44,7 +48,7 @@ class Geocoder():
         process the results from the API responses
 
     """
-    def __init__(self, geocode_results = None, df = None):
+    def __init__(self, geocode_results = None, df = None, cache = {'':[]}):
         """
         Initialize Geocoder
 
@@ -54,6 +58,8 @@ class Geocoder():
             load pre-saved results from API call
         df : pandas DataFrame [optional]
             load a dataframe
+        cache : dict
+            geocode cache
 
         Returns
         -----------
@@ -63,12 +69,15 @@ class Geocoder():
         load_dotenv() # take environment variables from .env.
         self.google_api_key = os.environ.get("GOOGLE_API_KEY")
         # Set up googlemaps client for reverse geocoding
-        self.client = googlemaps.Client(key=f"{self.google_api_key}")
-
+        self.client = googlemaps.Client(key=f"{self.google_api_key}", timeout=5)
+        self.cache = cache
         if geocode_results is not None:
             self.geocode_results = geocode_results
         if df is not None:
             self.df = df
+
+        self.geocode_results = {}
+        self.cluster_errors = set()
 
     def check_state(self):
         """
@@ -78,10 +87,10 @@ class Geocoder():
             state = self.client.__getstate__()
             return state
         except Exception as e:
-            print(e)
+            logger.error(e)
 
     # Request reverse geocoding from google api
-    def geocode_clusters(self, df: pd.DataFrame) -> dict:
+    def geocode_clusters(self, df: pd.DataFrame, clusters_to_try: list) -> dict:
         """
         Request reverse geocoding from GoogleMaps API
 
@@ -97,16 +106,84 @@ class Geocoder():
         """
         self.df = df
         total_len = df['cluster_label'].nunique()
-        self.geocode_results = {}
-        for i, cluster_label in enumerate(list(df['cluster_label'].unique())):
-            if i%50 == 0:
-                print(f"{100*(i/total_len):.1f}% Complete")
+        # clusters_to_try = list(df['cluster_label'].unique())
+
+        for i, cluster_label in enumerate(clusters_to_try):
+            if i%10 == 0:
+                logger.info(f"{100*(i/total_len):.1f}% Complete")
             # reverse geocode the mean lat and lon of the cluster
             lat, lon = df[df['cluster_label'] == cluster_label][['latitude','longitude']].mean().values
-            self.geocode_results[str(cluster_label)] = self.client.reverse_geocode((lat, lon))
+            if str(cluster_label) in self.cache:
+                self.geocode_results[str(cluster_label)] = self.cache[str(cluster_label)]
+                logging.debug(f'Using cached results for {cluster_label}')
+                continue
+            try:
+                # logging.info(f"Attempting reverse geocode for cluster {cluster_label} at {(lat, lon)}")
+                self.geocode_results[str(cluster_label)] = self.client.reverse_geocode((lat, lon))
+                self.cluster_errors.discard(str(cluster_label)) # removes from set, does not raise error if not there
+            except Exception as e:
+                self.cluster_errors.add(str(cluster_label))
+                logger.error(f"Couldn't retrieve geocode. Error:\n{e}")
             time.sleep(.02) # to stay under the 3000 requests per minute ~ .02 sec per request
 
-        return self.geocode_results
+        return self.geocode_results, self.cluster_errors
+
+    # def _geocode_single(self, cluster_label, df):
+    #     """Helper function to perform a single reverse geocode request."""
+    #     # reverse geocode the mean lat and lon of the cluster
+    #     lat, lon = df[df['cluster_label'] == cluster_label][['latitude','longitude']].mean().values
+    #     # Removed time.sleep(.02) to allow concurrent execution
+    #     return str(cluster_label), self.client.reverse_geocode((lat, lon))
+
+    # # Request reverse geocoding from google api
+    # def geocode_clusters(self, df: pd.DataFrame) -> dict:
+    #     """
+    #     Request reverse geocoding from GoogleMaps API concurrently using ThreadPoolExecutor.
+
+    #     Parameters
+    #     -----------
+    #     df : pandas DataFrame
+    #         contains columns ['cluster_label','latitude','longitude']
+
+    #     Returns
+    #     -----------
+    #     geocode_results : dict
+    #         dictionary containing {cluster_label: api_response}
+    #     """
+    #     self.df = df
+    #     cluster_labels = list(df['cluster_label'].unique())
+    #     total_len = len(cluster_labels)
+    #     self.geocode_results = {}
+        
+    #     # Use a ThreadPoolExecutor for I/O-bound concurrency
+    #     MAX_WORKERS = 5 # A reasonable starting concurrency level for network requests
+    #     print(f"Starting concurrent geocoding with {MAX_WORKERS} threads.")
+    #     logger.info("Starting concurrent geocoding with {MAX_WORKERS} threads.")
+
+    #     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+    #         # Submits tasks and stores them in a dict for tracking completion
+    #         future_to_label = {
+    #             executor.submit(self._geocode_single, label, df): label
+    #             for label in cluster_labels
+    #         }
+
+    #         for i, future in enumerate(concurrent.futures.as_completed(future_to_label)):
+    #             if (i % 50 == 0) and (i != 0): # Print progress
+    #                 print(f"{100*(i/total_len):.1f}% Complete")
+    #                 logger.info(f"{100*(i/total_len):.1f}% Complete")
+                
+    #             try:
+    #                 cluster_label, result = future.result()
+    #                 self.geocode_results[cluster_label] = result
+    #             except Exception as exc:
+    #                 label = future_to_label[future]
+    #                 print(f'Cluster {label} generated an exception: {exc}')
+    #                 logger.error(f"Cluster {label} generated an exception: {exc}")
+        #             # Consider adding retry logic here for specific exceptions (like API rate limit errors)
+
+        # print("100.0% Complete")
+        # logger.info(f"100.0% Complete")
+        # return self.geocode_results
 
     
     def process_geocode(self):
@@ -148,7 +225,9 @@ class Geocoder():
         # Get labels that are not special cases and exist in geocode_results
         regular_cluster_labels = [
             label for label in self.df['cluster_label'].unique()
-            if label not in [-1, -2, -3] and str(label) in self.geocode_results
+            if (label not in [-1, -2, -3]) and
+            (str(label) not in self.cluster_errors) and
+            (str(label) in self.geocode_results)
         ]
 
         for cluster_label in regular_cluster_labels:
@@ -257,7 +336,7 @@ class Geocoder():
             the normalized version of that cluster
         """
         # Mapping address to most frequent cluster_label
-        tdf = self.df_possible_addresses.groupby('address')['cluster_label'].agg(pd.Series.mode).to_frame().reset_index()
+        tdf = self.df_possible_addresses.groupby('address')['cluster_label'].agg(lambda x: pd.Series.mode(x).iloc[0]).to_frame().reset_index()
         tdf.rename(columns={'cluster_label': 'norm_cluster_label'}, inplace=True)
         tdf = tdf.explode('norm_cluster_label')
         # This df contains the mapping of cluster_label --> most_common_cluster_label

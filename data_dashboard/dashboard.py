@@ -14,17 +14,17 @@ import datetime
 # Custom
 from dashboard_utils import * 
 
-st.set_page_config(layout="wide", page_title="Tile Dashboard", page_icon="images/tile_logo.png")
+st.set_page_config(layout="wide", page_title="Tile Dashboard", page_icon="data_dashboard/images/tile_logo.png")
 title = '**Location Tracker Dashboard**'
 
 # title columns
 t1, t2, t3, t4 = st.columns([.6, .15, 1.25, .6])
-t2.image("images/tile_logo.png", width = 75)
+t2.image("data_dashboard/images/tile_logo.png", width = 75)
 t3.title(title, anchor='right')
 
 # date range columns
 dr1, dr2, dr3, dr4 = st.columns([.8,.5,.5,1])
-start_date = dr2.date_input(label="Start Date", value=datetime.date.today() - datetime.timedelta(days=30),
+start_date = dr2.date_input(label="Start Date", value=datetime.date.today() - datetime.timedelta(days=30), # datetime.date(year=2024, month=11, day=15)
                             min_value=datetime.date(year=2024, month=11, day=15))
 end_date = dr3.date_input(label="End Date", value = datetime.date.today(),
                             min_value=datetime.date(year=2024, month=11, day=16))

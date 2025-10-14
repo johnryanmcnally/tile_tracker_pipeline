@@ -8,6 +8,10 @@ from dotenv import load_dotenv
 from datetime import datetime
 import json
 import os
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 RAWDATAPATH = '/opt/data/raw/'
 load_dotenv()
@@ -38,21 +42,27 @@ async def main(email: str, pwd: str) -> None:
     async with ClientSession() as session:
         # login
         print('Logging in...')
+        logger.info("Logging in...")
         api = await async_login(email, pwd, session)
         # request data
         tiles = await api.async_get_tiles()
+        logger.info("Login Success.")
 
         # handle and save data from request return
         print("Collecting Data...")
+        logger.info("Collecting Data...")
         tile_history = {}
         for tile_uuid, tile in tiles.items():
             start = datetime(2024, 10, 1, 0, 0, 0)
             end = datetime.today()
             history = await tile.async_history(start, end)
             tile_history[tile_uuid] = history
+        logger.info("Data Collected.")
         
         print("Saving Data...")
+        logger.info("Saving Data...")
         with open(RAWDATAPATH + f'data_{datetime.now().date()}.json', 'w') as f:
             json.dump(tile_history, f)
         print(f"Data successfully saved to 'raw/data_{datetime.now().date()}.json'")
+        logger.info(f"Data successfully saved to 'raw/data_{datetime.now().date()}.json'")
 asyncio.run(main(email, pwd))

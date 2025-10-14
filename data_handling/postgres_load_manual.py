@@ -33,7 +33,7 @@ for fname in files_to_load:
     df['tile_name'] = 'John'
     table_name = fname.replace('.csv','').lower()
     try:
-        df.to_sql(table_name, engine, if_exists='replace', index=True)
+        df.to_sql(table_name, engine, if_exists='append', index=True)
         print(f"DataFrame successfully loaded into table '{table_name}' in PostgreSQL.")
 
     except Exception as e:

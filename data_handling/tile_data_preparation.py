@@ -12,8 +12,8 @@ from data_utils.geocoder import Geocoder
 from data_utils.weather_api import Weather_API
 
 # Variables
-RAWDATAPATH = r'data\raw\\'
-STAGEDATAPATH = r'data\staged\\'
+RAWDATAPATH = '/workspaces/tile_project/data/raw/'
+STAGEDATAPATH = '/workspaces/tile_project/data/staged/'
 tilenames = { # From pytile
     '0287c8181aa557e7': 'Maya', # On Maya's Camera
     '02df4813aa180c3a': "Maya's Backpack",
@@ -43,6 +43,7 @@ if __name__ == "__main__":
         print("Combining raw data...")
         start = time.time()
         df = combine_data(datapath=RAWDATAPATH, tile_uuid=tile_uuid, tile_name=tile_name)
+        print(df.shape)
         print("Data successfully combined.")
         print(f"Took {time.time() - start:.3f} seconds")
 
