@@ -8,6 +8,7 @@ services:
       - ./airflow:/opt/airflow
       - ./data_handling:/opt/data_handling
       - ./data:/opt/data
+      - ./data_dashboard:/opt/data_dashboard
 
     ports:
       - "8080:8080"
