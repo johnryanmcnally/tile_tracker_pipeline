@@ -22,7 +22,17 @@ t1, t2, t3, t4 = st.columns([.6, .15, 1.25, .6])
 t2.image("data_dashboard/images/tile_logo.png", width = 75)
 t3.title(title, anchor='right')
 
+# Joya Chatbot section
+st.markdown('<div style="text-align: center;"><h3/>Retrieval Augmented Generation (RAG) LLM</h3></div>', unsafe_allow_html=True)
+chat1, chat2, chat3 = st.columns([.25,.85,.25])
+with chat2.container(height=250, border=False):
+    messages = st.container()
+if prompt := chat2.chat_input("Hi, I'm Joya. Ask me about my trip."):
+    messages.chat_message("user").write(prompt)
+    messages.chat_message("Joya").write(f"{joya_chat(prompt)}")
+
 # date range columns
+st.markdown('<div style="text-align: center;"><h3/>Dashboard</h3></div>', unsafe_allow_html=True)
 dr1, dr2, dr3, dr4 = st.columns([.8,.5,.5,1])
 start_date = dr2.date_input(label="Start Date", value=datetime.date.today() - datetime.timedelta(days=30), # datetime.date(year=2024, month=11, day=15)
                             min_value=datetime.date(year=2024, month=11, day=15))
@@ -36,7 +46,7 @@ mt3.write(f"|-------------------------------------------------------------------
 m1, m2, m3, m4, m5, m6, m7 = st.columns(7)
 
 # graph columns
-col1, col2, col3, col4, col5 = st.columns([.01, .5, .5, 1.25, .25], gap='medium')
+col1, col2, col3, col4, col5 = st.columns([.2, .4, .4, 1, .3], gap='medium')
 title_font_size = 15
 
 # Retrieve data based on period
@@ -64,8 +74,8 @@ col4.altair_chart(weather_chart.properties(height=300, width=600, padding={'bott
 
 
 # Make Map
+st.markdown('<div style="text-align: center;"><h3/>Interactive Map w/ Histograms</h3></div>', unsafe_allow_html=True)
 slider1, slider2, slider3 = st.columns([1,.85,1])
-slider2.subheader('Interactive Map w/ Histograms', anchor='middle')
 mapdata = fetch_data(start_date, end_date)
 df = mapdata[['longitude','latitude']].copy().rename(columns={'latitude':'Latitude','longitude':'Longitude'})
 
@@ -97,48 +107,3 @@ except:
     m2.metric(label='Try Rotating the Map', value=f"")
     m2.metric(label=f'No Points Available', value=f"")
     m2.metric(label=f'No Points Available', value=f"")
-
-
-# Joya Chatbot section
-# ** Just load Vertex AI App into Streamlit **
-# gradio_interface_url = "https://genai-app-travelstorygeneration-1-1756046827551-965790274455.us-central1.run.app/?key=kkosf48reph1b6f4"
-
-# chat1, chat2, chat3 = st.columns([.35,1,.25])
-# # Load the Gradio interface using an iframe
-# chat2.write(f'<iframe src="{gradio_interface_url}" width="800" height="600"></iframe>',
-#          unsafe_allow_html=True) 
-
-chat1, chat2, chat3 = st.columns([.5,1,.5])
-# with st.sidebar:
-messages = chat2.container()
-if prompt := chat2.chat_input("Hi, I'm Joya. Ask me about my trip."):
-    messages.chat_message("user").write(prompt)
-    messages.chat_message("Joya").write(f"{joya_chat(prompt)}")
-
-
-# Attempt at folium map
-# m = fol.Map([mean_lat, mean_lon], zoom_start=5)
-
-# for i, data in mapdata.iterrows():
-#     tooltip = fol.features.Tooltip(
-#     f"Cluster: {data['cluster_label']}",
-#     style="font-size: 12px;" # background-color: lightblue;  border: 1px solid blue;
-#     )
-#     popup = fol.features.Popup(
-#         f"""
-#         Cluster: {data['cluster_label']}<br>
-#         Lat: {data['latitude']:.5f}<br>
-#         Lon: {data['longitude']:.5f}
-#         """,
-#         style="font-size: 12px;"
-#     )
-#     fol.CircleMarker(
-#         location=[data['latitude'], data['longitude']],
-#         fill = True,
-#         radius = 3,
-#         tooltip= tooltip,
-#         popup= popup
-#     ).add_to(m)
-# map1, map2, map3 = st.columns([.2,1,.1])
-# with map2:
-#     st_folium(m, use_container_width=True) 

@@ -13,12 +13,6 @@ from data_utils.weather_api import Weather_API
 
 # Variables
 TEMPPATH = '/opt/data/temp/'
-# if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
-#     # Running inside an Airflow task
-#     TEMPPATH = '/opt/data/temp/'
-# else:
-#     # Running locally or outside Airflow
-#     TEMPPATH = './data/temp/'
 
 if __name__ == '__main__':
     testing = True

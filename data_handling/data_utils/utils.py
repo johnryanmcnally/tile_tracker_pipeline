@@ -22,12 +22,6 @@ def postgres_connection():
     db_user = os.getenv("POSTGRESQL_USERNAME")
     db_password = os.getenv("POSTGRESQL_PWD")
     db_host = 'host.docker.internal'
-    # if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
-    #     # Running inside an Airflow task
-    #     db_host = 'localhost'
-    # else:
-    #     # Running locally or outside Airflow
-    #     db_host = 'host.docker.internal' # for running in devcontainer
     db_port = '5432'
     db_name = 'tile_db'
 
@@ -36,8 +30,22 @@ def postgres_connection():
     return engine
 
 def get_db_info():
-    # PostgreSQL credentials and database details
+    """
+    Function to retrieve postgresql database information
+
+    Parameters
+    ------------
+    None
     
+    Returns
+    ------------
+    most_recent_date : str
+        most recent result in database
+    most_recent_timestamp : int
+        most recent timestamp in database
+    cluster_labels : list
+        list of all cluster labels in the database
+    """    
     engine = postgres_connection()
     query = f"""
 SELECT
@@ -48,7 +56,7 @@ FROM
 ;
 """
     most_recent_date, most_recent_timestamp = pd.read_sql(query, con=engine)[['date','timestamp']].values[0]
-    # most_recent_timestamp = 0
+
     query = f"""
 SELECT
 	DISTINCT cluster_label
@@ -77,7 +85,9 @@ def combine_data(datapath: str, tile_uuid: str, tile_name: str,
     tile_name : string
         human readable name of the tile
     most_recent_date : string
-        last entry date from PostgreSQL database
+        last entry date from PostgreSQL 
+    most_recent_timestamp : int
+        most recent timestamp in database
 
     Returns
     ----------

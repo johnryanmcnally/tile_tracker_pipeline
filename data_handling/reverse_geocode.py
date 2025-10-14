@@ -14,12 +14,6 @@ from data_utils.geocoder import Geocoder
 
 # Variables
 TEMPPATH = '/opt/data/temp/'
-# if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
-#     # Running inside an Airflow task
-#     TEMPPATH = '/opt/data/temp/'
-# else:
-#     # Running locally or outside Airflow
-#     TEMPPATH = './data/temp/'
 
 if __name__ == '__main__':
     # Load Data
@@ -31,7 +25,6 @@ if __name__ == '__main__':
         cache = json.load(f)
 
     # request reverse geocode information from googlemaps api
-    # *** Must have Google Cloud SDK Shell running and authenticated ***
     geocoder = Geocoder(cache=cache)
     geocoder.check_state()
     logger.info("Requesting reverse geocoding from GoogleMaps API...")
@@ -43,7 +36,6 @@ if __name__ == '__main__':
     if len(cluster_errors) > 0:
         logger.info(f"Retrying on {len(cluster_errors)} clusters")
         geocode_results, cluster_errors = geocoder.geocode_clusters(df[['cluster_label','latitude','longitude']], list(cluster_errors))
-
 
     logger.info(f"Done.")
     logger.info(f"Took {time.time() - start:.3f} seconds")

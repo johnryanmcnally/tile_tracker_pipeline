@@ -18,16 +18,6 @@ from data_utils.utils import combine_data, add_bearing_column, add_direction_sim
 RAWDATAPATH = '/opt/data/raw/'
 STAGEDATAPATH = '/opt/data/staged/'
 TEMPPATH = '/opt/data/temp/'
-# if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
-#     # Running inside an Airflow task
-#     RAWDATAPATH = '/opt/data/raw/'
-#     STAGEDATAPATH = '/opt/data/staged/'
-#     TEMPPATH = '/opt/data/temp/'
-# else:
-#     # Running locally or outside Airflow
-#     RAWDATAPATH = './data/raw/'
-#     STAGEDATAPATH = './data/staged/'
-#     TEMPPATH = './data/temp/'
 
 tilenames = { # From pytile
     '0287c8181aa557e7': 'Maya', # On Maya's Camera

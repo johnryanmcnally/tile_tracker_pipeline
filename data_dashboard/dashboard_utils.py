@@ -380,6 +380,19 @@ def make_plotly_map(plotdf, filter_selection):
 
 # Chatbot Functions
 def joya_chat(question):
+    """
+    Function to handle RAG LLM Pipeline
+
+    Parameters
+    -----------
+    question : str
+        user input to text box
+    
+    Returns
+    -----------
+    reponse : object
+        output of rag_chain.invoke(). contains a string from the 'answer' attribute
+    """
     api_key = st.secrets["GOOGLE_API_KEY"]
 
     # Setup vector store  

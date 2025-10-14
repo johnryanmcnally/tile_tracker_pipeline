@@ -11,20 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 TEMPPATH = '/opt/data/temp/'
-db_host = 'host.docker.internal'
-# if os.getenv('AIRFLOW_CONTEXT_DAG_ID'):
-#     # Running inside an Airflow task
-#     TEMPPATH = '/opt/data/temp/'
-#     db_host = 'localhost'
-# else:
-#     # Running locally or outside Airflow
-#     TEMPPATH = './data/temp/'
-#     db_host = 'host.docker.internal'
 
 # PostgreSQL credentials and database details
 load_dotenv() # take environment variables from .env.
 db_user = os.getenv("POSTGRESQL_USERNAME")
 db_password = os.getenv("POSTGRESQL_PWD")
+db_host = 'host.docker.internal'
 db_port = '5432'
 db_name = 'tile_db'
 
@@ -40,6 +32,7 @@ files_to_load = [
                  # weather api results
                  'weather.parquet']
 
+# keys to remove duplicates in each table
 conflict_keys_map = {
     'tile_data_john':['location_timestamp'],
     'addresses':['cluster_label', 'address'],
@@ -50,10 +43,13 @@ conflict_keys_map = {
 }
 
 for fname in files_to_load:
+    # read and clean data
     df = pd.read_parquet(TEMPPATH + fname)
     remove_cols = [col for col in df if 'unnamed' in col.lower()]
     df = df.drop(columns=remove_cols)
     df['tile_name'] = 'John'
+
+    # set up sql variables
     table_name = fname.replace('.parquet','').lower()
     if table_name == 'feature_engineering':
         table_name = 'tile_data_john'
