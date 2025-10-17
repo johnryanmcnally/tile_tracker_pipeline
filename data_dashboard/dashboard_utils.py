@@ -393,7 +393,7 @@ def joya_chat(question):
     reponse : object
         output of rag_chain.invoke(). contains a string from the 'answer' attribute
     """
-    api_key = st.secrets["GOOGLE_API_KEY"]
+    api_key = st.secrets["GOOGLE_API_KEY_STREAMLIT"] 
 
     # Setup vector store  
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=api_key, transport="grpc")    

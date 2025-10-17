@@ -39,6 +39,7 @@ retrieve_weather_task = BashOperator(
     dag = dag
 )
 
+# Step 4
 load_to_postgres_task = BashOperator(
     task_id = 'load_to_postgres',
     bash_command='python /opt/data_handling/postgres_load.py',
