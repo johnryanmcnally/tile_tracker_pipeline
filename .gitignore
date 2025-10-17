@@ -9,4 +9,3 @@ data_handling/save_state.csv
 /airflow/simple_auth_manager_passwords.json.generated
 !/data_dashboard/images/tile_logo.png
 /data_dashboard/.streamlit/secrets.toml
-data_dashboard/.streamlit/secrets.toml
