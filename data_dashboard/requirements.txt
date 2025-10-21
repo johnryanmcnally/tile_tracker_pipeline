@@ -108,7 +108,6 @@ jsonschema-specifications==2025.9.1
 jupyter-client==8.6.3
 jupyter-core==5.8.1
 kiwisolver==1.4.9
-kubernetes==34.1.0
 langchain==1.0.1
 langchain-chroma==1.0.0
 langchain-classic==1.0.0
