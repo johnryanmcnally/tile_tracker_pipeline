@@ -264,7 +264,7 @@ uc-micro-py==1.0.3
 universal-pathlib==0.3.0
 uritemplate==4.2.0
 url-normalize==2.2.1
-urllib3==2.5.0
+urllib3==2.3.0
 urllib3-future==2.14.900
 uuid6==2025.0.1
 uvicorn==0.38.0
